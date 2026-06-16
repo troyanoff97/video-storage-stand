@@ -17,7 +17,7 @@ services:
     image: chrislusf/seaweedfs:3.80
     command: >
       volume -ip=volume1 -mserver=master:9333 -ip.bind=0.0.0.0
-      -port=8080 -dir=/data -max=5
+      -port=8080 -dir=/data -max=5 -dataCenter=dc1
     ports:
       - "8080:8080"
     volumes:
@@ -36,7 +36,7 @@ services:
     image: chrislusf/seaweedfs:3.80
     command: >
       volume -ip=volume2 -mserver=master:9333 -ip.bind=0.0.0.0
-      -port=8080 -dir=/data -max=5
+      -port=8080 -dir=/data -max=5 -dataCenter=dc2
     ports:
       - "8081:8080"
     volumes:
