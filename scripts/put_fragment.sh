@@ -17,6 +17,7 @@ FRAGMENT_ID="${3:-}"
 MASTER_URL="${MASTER_URL:-http://localhost:9333}"
 SIDEWEED_URL="${SIDEWEED_URL:-http://localhost:8880}"
 REPLICATION="${REPLICATION:-001}"
+DATA_CENTER="${DATA_CENTER:-}"
 
 # shellcheck source=volume_url.sh
 source "$(dirname "${BASH_SOURCE[0]}")/volume_url.sh"
@@ -35,7 +36,11 @@ SIZE=$(stat -c%s "$FILE")
 
 echo "==> Assign from master (replication=${REPLICATION})"
 set +e
-ASSIGN=$(curl -s -w "\nHTTP_CODE:%{http_code}" "${MASTER_URL}/dir/assign?count=1&replication=${REPLICATION}")
+ASSIGN_URL="${MASTER_URL}/dir/assign?count=1&replication=${REPLICATION}"
+if [[ -n "$DATA_CENTER" ]]; then
+  ASSIGN_URL="${ASSIGN_URL}&dataCenter=${DATA_CENTER}"
+fi
+ASSIGN=$(curl -s -w "\nHTTP_CODE:%{http_code}" "${ASSIGN_URL}")
 ASSIGN_HTTP=$(echo "$ASSIGN" | awk -F: '/HTTP_CODE:/ {print $2}')
 ASSIGN_BODY=$(echo "$ASSIGN" | sed '/HTTP_CODE:/d')
 set -e

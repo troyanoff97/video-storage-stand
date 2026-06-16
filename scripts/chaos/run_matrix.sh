@@ -23,11 +23,18 @@ section() {
 
 try_put() {
   local label="$1"
+  local data_center="${2:-}"
   set +e
   local out code
-  out=$(./scripts/put_fragment.sh "$TEST_FILE" "${CAMERA}-${label}" 2>&1)
+  if [[ "$data_center" == "dc1-v1" ]]; then
+    out=$(DATA_CENTER=dc1 REPLICATION=000 ./scripts/put_fragment.sh "$TEST_FILE" "${CAMERA}-${label}" 2>&1)
+  elif [[ -n "$data_center" ]]; then
+    out=$(DATA_CENTER="$data_center" ./scripts/put_fragment.sh "$TEST_FILE" "${CAMERA}-${label}" 2>&1)
+  else
+    out=$(./scripts/put_fragment.sh "$TEST_FILE" "${CAMERA}-${label}" 2>&1)
+  fi
   code=$?
-  log "PUT [${label}]: exit=${code}"
+  log "PUT [${label}] dataCenter=${data_center:-any}: exit=${code}"
   log "$out"
   set -e
   return "$code"
@@ -103,14 +110,14 @@ sleep 8
 
 section "3 disk full (volume1)"
 ./scripts/chaos/disk_full.sh volume1 || true
-try_put disk-full || true
+try_put disk-full dc1-v1 || true
 capture_logs volume1
 ./scripts/chaos/reset_volumes.sh volume1 || true
 sleep 8
 
 section "4 disk read-only (volume1)"
 ./scripts/chaos/disk_readonly.sh volume1 || true
-try_put disk-readonly || true
+try_put disk-readonly dc1-v1 || true
 try_get disk-readonly "$BASELINE_FRAGMENT" || true
 capture_logs volume1
 ./scripts/chaos/reset_volumes.sh volume1 || true
