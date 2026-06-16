@@ -36,13 +36,9 @@ func (u *Uploader) Close() {
 }
 
 func (u *Uploader) Put(ctx context.Context, cameraID string, data []byte) (Fragment, error) {
-	assign, _, err := u.seaweed.Assign(ctx)
+	assign, _, err := u.seaweed.PutDirectWithRetry(ctx, "fragment.bin", data)
 	if err != nil {
-		return Fragment{}, fmt.Errorf("assign: %w", err)
-	}
-
-	if _, err := u.seaweed.PutDirect(ctx, assign, "fragment.bin", data); err != nil {
-		return Fragment{}, fmt.Errorf("put: %w", err)
+		return Fragment{}, fmt.Errorf("put blob: %w", err)
 	}
 
 	frag := Fragment{
@@ -57,8 +53,7 @@ func (u *Uploader) Put(ctx context.Context, cameraID string, data []byte) (Fragm
 		return Fragment{}, fmt.Errorf("cassandra insert: %w", err)
 	}
 
-	// Verify read path via sideweed.
-	got, _, err := u.seaweed.GetViaSideweed(ctx, assign.FID)
+	got, err := u.seaweed.GetViaSideweedWithRetry(ctx, assign.FID)
 	if err != nil {
 		return Fragment{}, fmt.Errorf("verify get: %w", err)
 	}
@@ -75,7 +70,7 @@ func (u *Uploader) Get(ctx context.Context, cameraID string, fragmentID gocql.UU
 		return nil, Fragment{}, fmt.Errorf("cassandra select: %w", err)
 	}
 
-	data, _, err := u.seaweed.GetViaSideweed(ctx, meta.SeaweedFID)
+	data, err := u.seaweed.GetViaSideweedWithRetry(ctx, meta.SeaweedFID)
 	if err != nil {
 		return nil, Fragment{}, fmt.Errorf("get blob: %w", err)
 	}

@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -18,9 +20,11 @@ type SeaweedConfig struct {
 	MasterURL    string
 	SideweedURL  string
 	Replication  string
-	DataCenter   string // optional: dc1, dc2 — pin assign to a volume node
+	DataCenter   string
 	VolumeHosts  map[string]string
 	HTTPClient   *http.Client
+	Retry        RetryConfig
+	Circuit      CircuitBreakerConfig
 }
 
 // DefaultVolumeHosts maps docker network hosts to localhost URLs.
@@ -32,7 +36,8 @@ func DefaultVolumeHosts() map[string]string {
 }
 
 type SeaweedClient struct {
-	cfg SeaweedConfig
+	cfg      SeaweedConfig
+	circuit  *masterCircuitBreaker
 }
 
 func NewSeaweedClient(cfg SeaweedConfig) *SeaweedClient {
@@ -45,10 +50,63 @@ func NewSeaweedClient(cfg SeaweedConfig) *SeaweedClient {
 	if cfg.HTTPClient == nil {
 		cfg.HTTPClient = &http.Client{Timeout: 2 * time.Minute}
 	}
-	return &SeaweedClient{cfg: cfg}
+	if cfg.Retry.AssignMaxAttempts == 0 {
+		cfg.Retry = defaultRetryConfig()
+	}
+	return &SeaweedClient{
+		cfg:     cfg,
+		circuit: newMasterCircuitBreaker(cfg.Circuit),
+	}
 }
 
 func (c *SeaweedClient) Assign(ctx context.Context) (AssignResult, int, error) {
+	if err := c.circuit.Allow(); err != nil {
+		return AssignResult{}, 0, err
+	}
+
+	result, code, err := c.assignOnce(ctx)
+	if err != nil {
+		if code == 0 || isConnectionError(err) {
+			c.circuit.OnFailure(true)
+		}
+		return result, code, err
+	}
+
+	c.circuit.OnSuccess()
+	return result, code, nil
+}
+
+// AssignWithRetry retries assign on HTTP 406 and transient errors.
+func (c *SeaweedClient) AssignWithRetry(ctx context.Context) (AssignResult, error) {
+	var lastErr error
+	for attempt := 1; attempt <= c.cfg.Retry.AssignMaxAttempts; attempt++ {
+		result, code, err := c.Assign(ctx)
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+
+		retryable := false
+		var assignErr *AssignError
+		if errors.As(err, &assignErr) {
+			retryable = assignErr.Retryable
+		} else if errors.Is(err, ErrMasterCircuitOpen) {
+			return AssignResult{}, err
+		} else if code == 0 || isRetryableHTTP(code) {
+			retryable = true
+		}
+
+		if !retryable || attempt == c.cfg.Retry.AssignMaxAttempts {
+			break
+		}
+		if err := sleepWithBackoff(ctx, attempt, c.cfg.Retry.BaseDelay); err != nil {
+			return AssignResult{}, err
+		}
+	}
+	return AssignResult{}, lastErr
+}
+
+func (c *SeaweedClient) assignOnce(ctx context.Context) (AssignResult, int, error) {
 	q := url.Values{}
 	q.Set("count", "1")
 	q.Set("replication", c.cfg.Replication)
@@ -64,6 +122,13 @@ func (c *SeaweedClient) Assign(ctx context.Context) (AssignResult, int, error) {
 
 	resp, err := c.cfg.HTTPClient.Do(req)
 	if err != nil {
+		if isNetError(err) {
+			return AssignResult{}, 0, &AssignError{
+				StatusCode: 0,
+				Retryable:  false,
+				Message:    fmt.Sprintf("assign connection error: %v", err),
+			}
+		}
 		return AssignResult{}, 0, err
 	}
 	defer resp.Body.Close()
@@ -78,18 +143,58 @@ func (c *SeaweedClient) Assign(ctx context.Context) (AssignResult, int, error) {
 		return AssignResult{}, resp.StatusCode, fmt.Errorf("decode assign: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		if result.Error != "" {
-			return result, resp.StatusCode, fmt.Errorf("assign HTTP %d: %s", resp.StatusCode, result.Error)
+		msg := result.Error
+		if msg == "" {
+			msg = string(body)
 		}
-		return result, resp.StatusCode, fmt.Errorf("assign HTTP %d: %s", resp.StatusCode, string(body))
+		return result, resp.StatusCode, &AssignError{
+			StatusCode: resp.StatusCode,
+			Retryable:  isRetryableHTTP(resp.StatusCode),
+			Message:    fmt.Sprintf("assign HTTP %d: %s", resp.StatusCode, msg),
+		}
 	}
 	if result.FID == "" {
-		return result, resp.StatusCode, fmt.Errorf("assign returned empty fid")
+		return result, resp.StatusCode, &AssignError{
+			StatusCode: resp.StatusCode,
+			Retryable:  false,
+			Message:    "assign returned empty fid",
+		}
 	}
 	return result, resp.StatusCode, nil
 }
 
 func (c *SeaweedClient) PutDirect(ctx context.Context, assign AssignResult, filename string, data []byte) (int, error) {
+	return c.putDirectOnce(ctx, assign, filename, data)
+}
+
+// PutDirectWithRetry retries PUT on 5xx with a fresh assign.
+func (c *SeaweedClient) PutDirectWithRetry(ctx context.Context, filename string, data []byte) (AssignResult, int, error) {
+	var lastErr error
+	for attempt := 1; attempt <= c.cfg.Retry.PutMaxAttempts; attempt++ {
+		assign, err := c.AssignWithRetry(ctx)
+		if err != nil {
+			return AssignResult{}, 0, fmt.Errorf("assign for put: %w", err)
+		}
+
+		code, err := c.putDirectOnce(ctx, assign, filename, data)
+		if err == nil {
+			return assign, code, nil
+		}
+		lastErr = err
+
+		putErr := &PutError{}
+		if errors.As(err, &putErr) && putErr.Retryable && attempt < c.cfg.Retry.PutMaxAttempts {
+			if sleepErr := sleepWithBackoff(ctx, attempt, c.cfg.Retry.BaseDelay); sleepErr != nil {
+				return AssignResult{}, code, sleepErr
+			}
+			continue
+		}
+		return assign, code, err
+	}
+	return AssignResult{}, 0, lastErr
+}
+
+func (c *SeaweedClient) putDirectOnce(ctx context.Context, assign AssignResult, filename string, data []byte) (int, error) {
 	volumeBase, ok := c.cfg.VolumeHosts[assign.URL]
 	if !ok {
 		return 0, fmt.Errorf("unknown volume URL %q", assign.URL)
@@ -120,15 +225,51 @@ func (c *SeaweedClient) PutDirect(ctx context.Context, assign AssignResult, file
 		return 0, err
 	}
 	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return resp.StatusCode, fmt.Errorf("PUT HTTP %d", resp.StatusCode)
+		return resp.StatusCode, &PutError{
+			StatusCode: resp.StatusCode,
+			Retryable:  isRetryableHTTP(resp.StatusCode),
+			Message:    fmt.Sprintf("PUT HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody))),
+		}
 	}
 	return resp.StatusCode, nil
 }
 
 func (c *SeaweedClient) GetViaSideweed(ctx context.Context, fid string) ([]byte, int, error) {
+	return c.getOnce(ctx, fid)
+}
+
+// GetViaSideweedWithRetry retries GET on 502/503/504 and 5xx.
+func (c *SeaweedClient) GetViaSideweedWithRetry(ctx context.Context, fid string) ([]byte, error) {
+	var lastErr error
+	for attempt := 1; attempt <= c.cfg.Retry.GetMaxAttempts; attempt++ {
+		data, code, err := c.getOnce(ctx, fid)
+		if err == nil {
+			return data, nil
+		}
+		lastErr = err
+
+		getErr := &GetError{}
+		retryable := false
+		if errors.As(err, &getErr) {
+			retryable = getErr.Retryable
+		}
+		if !retryable && isRetryableGetHTTP(code) {
+			retryable = true
+		}
+		if !retryable || attempt == c.cfg.Retry.GetMaxAttempts {
+			break
+		}
+		if err := sleepWithBackoff(ctx, attempt, c.cfg.Retry.BaseDelay); err != nil {
+			return nil, err
+		}
+	}
+	return nil, lastErr
+}
+
+func (c *SeaweedClient) getOnce(ctx context.Context, fid string) ([]byte, int, error) {
 	getURL := strings.TrimSuffix(c.cfg.SideweedURL, "/") + "/" + fid
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, getURL, nil)
 	if err != nil {
@@ -146,7 +287,16 @@ func (c *SeaweedClient) GetViaSideweed(ctx context.Context, fid string) ([]byte,
 		return nil, resp.StatusCode, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, resp.StatusCode, fmt.Errorf("GET HTTP %d", resp.StatusCode)
+		return nil, resp.StatusCode, &GetError{
+			StatusCode: resp.StatusCode,
+			Retryable:  isRetryableGetHTTP(resp.StatusCode),
+			Message:    fmt.Sprintf("GET HTTP %d", resp.StatusCode),
+		}
 	}
 	return data, resp.StatusCode, nil
+}
+
+func isNetError(err error) bool {
+	var opErr *net.OpError
+	return errors.As(err, &opErr)
 }
