@@ -38,6 +38,19 @@ make put-v1
 
 Package: `pkg/fragment` — interface `Store`, implementation `Uploader`.
 
+Resilience (Go client):
+
+- **AssignWithRetry** — retries HTTP 406 / 5xx with exponential backoff
+- **PutDirectWithRetry** — fresh assign + retry on PUT 5xx
+- **GetViaSideweedWithRetry** — retries 502/503/504
+- **Master circuit breaker** — opens after 3 connection failures (10s cooldown)
+
+```bash
+make test-unit    # resilience unit tests
+make test-go      # integration (+ circuit breaker against live stack)
+make chaos-volume1  # fault tests pinned to volume1 (stop volume2)
+```
+
 ## Репозиторий и fork
 
 - **Стенд (этот repo):** docker-compose, scripts, Go client, tests
@@ -52,15 +65,16 @@ Dockerfile: `docker/sideweed.Dockerfile`, build context — submodule `./sidewee
 
 ## Pin assign на volume1 (chaos-тесты)
 
-| Node | dataCenter | replication для pin |
-|------|------------|---------------------|
-| volume1 | dc1 | `000` (без replica) |
-| volume2 | dc2 | `000` |
+| Node | dataCenter | rack | replication для pin |
+|------|------------|------|---------------------|
+| volume1 | dc1 | rack1 | `000` + volume2 stopped |
+| volume2 | dc1 | rack1 | `001` (replica в том же rack) |
 
-`replication=001` + `dataCenter=dc1` **не** pin'ит на volume1 — master ищет replica на другом node.
+Оба volume в **dc1/rack1** — иначе `replication=001` не создаёт writable volumes на fresh cluster.
 
 ```bash
 ./scripts/put_to_volume1.sh file.bin camera-1
+make chaos-volume1
 ```
 
 Подробнее: [docs/chaos-expectations.md](docs/chaos-expectations.md)
@@ -103,10 +117,12 @@ Prometheus metrics sideweed: `http://localhost:8880/.prometheus/metrics`
 | `make health` | wait for all services |
 | `make test` | smoke test put + get (bash) |
 | `make test-go` | Go integration tests |
+| `make test-unit` | Go unit tests (resilience) |
 | `make test-all` | bash + Go |
 | `make build-cli` | `bin/fragment` |
 | `make put-v1` | PUT на volume1 (dc1, replication 000) |
 | `make chaos-matrix` | прогнать все fault-сценарии |
+| `make chaos-volume1` | volume1-only faults (disk full/ro) |
 | `make chaos-volume-down` | stop volume1 |
 | `make chaos-master-down` | stop master |
 | `make chaos-reset` | reset volume1 state |

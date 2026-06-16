@@ -1,5 +1,5 @@
 # Chaos test expectations vs observed behavior on the local stand.
-# Generated from make chaos-matrix runs; update after infrastructure changes.
+# Update after `make chaos-matrix` or `make chaos-volume1` runs.
 
 ## Application expectations (recommended)
 
@@ -10,6 +10,14 @@
 | PUT HTTP 5xx | Do not write Cassandra metadata; retry assign+put |
 | GET via sideweed 502 | Retry on another read attempt (sideweed failover) |
 | Cassandra insert fail after PUT | Compensating delete or mark orphan blob |
+
+Go client (`pkg/fragment`): `AssignWithRetry` (406/5xx), `PutDirectWithRetry`, `GetViaSideweedWithRetry`, master circuit breaker (3 failures → open 10s). Unit tests: `make test-unit`.
+
+## Topology notes (2026-06-16)
+
+- **replication=001** requires both volume nodes in the **same dataCenter and rack** (`dc1` / `rack1`). With volume1 in `dc1` and volume2 in `dc2`, assign 001 fails on a fresh cluster.
+- **Pin writes to volume1:** `replication=000` + stop volume2 (`make chaos-volume1` does this) or retry in `put_to_volume1.sh`.
+- **disk read-only on volume1:** `docker-compose.chaos.yml` mounts **tmpfs** on volume1 `/data` (not a named volume) so `mount -o remount,ro` works; volume1 runs **privileged** for remount.
 
 ## Observed behavior (stand)
 
@@ -26,15 +34,20 @@
 - assign: **HTTP 406** when no other writable capacity
 - sideweed: volume1 marked DOWN after container crash
 
-### disk full on volume1 (with `DATA_CENTER=dc1`)
+### disk full on volume1 (`make chaos-volume1`, tmpfs 512M)
 
-- assign: **HTTP 406** or PUT **HTTP 500** / ENOSPC on volume1 logs
-- Use: `DATA_CENTER=dc1 ./scripts/put_fragment.sh ...` or `make put-v1`
+- `disk_full.sh` fills tmpfs to ~100% (`/data/fill`).
+- **Observed (2026-06-16):** PUT may still **succeed** if the needle fits in an already-open preallocated `.dat` volume (`volumeSizeLimitMB=256`). New volume growth fails when tmpfs is full.
+- volume log when growth blocked: `no space left on device` / HTTP **500** on PUT (seen on earlier runs with host disk fill).
+- **Mitigation:** `make clean && make up` between runs; or lower `-volumeSizeLimitMB` for chaos.
 
-### disk read-only on volume1 (with `DATA_CENTER=dc1`)
+### disk read-only on volume1 (`make chaos-volume1`)
 
-- PUT: **HTTP 500**, volume log: `read-only file system`
-- GET existing: **HTTP 200** via sideweed
+- `disk_readonly.sh`: `mount -t tmpfs -o remount,ro tmpfs /data` inside privileged volume1.
+- assign: **HTTP 406** — `No writable volumes`
+- PUT script: **exit 22** (assign failure)
+- volume log: `open /data/NN.dat: read-only file system`
+- GET of blobs written before remount: **HTTP 200** via sideweed (not re-tested in this run; expected)
 
 ### master stopped
 
@@ -42,12 +55,26 @@
 - GET via sideweed: **HTTP 200** for known fid
 - volume log: `heartbeat to master:9333 error: rpc error: code = Unavailable`
 
+## Volume1 chaos run (`make chaos-volume1`, 2026-06-16)
+
+| Step | Assign | PUT | Notes |
+|------|--------|-----|-------|
+| baseline (volume2 stopped) | 200 → volume1 | 201 | fid on volume1:8080 |
+| disk full | 200 → volume1 | 201* | *may succeed on preallocated volume; see above |
+| disk read-only | **406** | **fail (exit 22)** | logs: `read-only file system` |
+
+Results file: `chaos-volume1-results.txt` (gitignored).
+
 ### Pin assign to volume1
 
-Use **replication=000** + **dataCenter=dc1** (replication 001 requires a replica on another node):
+```bash
+# stop volume2 so only volume1 accepts replication=000 writes:
+docker compose -f docker-compose.yml -f docker-compose.chaos.yml stop volume2
+./scripts/put_to_volume1.sh file.bin camera-1
+make chaos-volume1   # stops volume2 automatically
+```
 
 ```bash
-./scripts/put_to_volume1.sh file.bin camera-1
 REPLICATION=000 DATA_CENTER=dc1 ./scripts/put_fragment.sh file.bin camera-1
-go run ./cmd/fragment put file.bin camera-1 --data-center dc1  # uses REPLICATION=001 by default; use env REPLICATION=000 for volume1-only
+REPLICATION=000 ./bin/fragment put file.bin camera-1 --data-center dc1
 ```
