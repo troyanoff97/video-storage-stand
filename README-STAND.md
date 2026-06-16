@@ -19,9 +19,51 @@ git submodule update --init --recursive
 make up
 make health
 make test
+make test-go      # Go integration tests
+make build-cli    # bin/fragment
 ```
 
-Или вручную:
+## Go client
+
+```bash
+make build-cli
+./bin/fragment put /tmp/test-fragment.bin camera-go
+./bin/fragment get camera-go <fragment_uuid>
+
+# Pin write to volume1 (replication 000 + dc1):
+REPLICATION=000 ./bin/fragment put /tmp/test.bin camera-go --data-center dc1
+# or:
+make put-v1
+```
+
+Package: `pkg/fragment` — interface `Store`, implementation `Uploader`.
+
+## Репозиторий и fork
+
+- **Стенд (этот repo):** docker-compose, scripts, Go client, tests
+- **sideweed submodule:** [github.com/troyanoff97/sideweed](https://github.com/troyanoff97/sideweed) (ваш fork)
+
+```bash
+git submodule sync
+git submodule update --init --recursive
+```
+
+Dockerfile: `docker/sideweed.Dockerfile`, build context — submodule `./sideweed`.
+
+## Pin assign на volume1 (chaos-тесты)
+
+| Node | dataCenter | replication для pin |
+|------|------------|---------------------|
+| volume1 | dc1 | `000` (без replica) |
+| volume2 | dc2 | `000` |
+
+`replication=001` + `dataCenter=dc1` **не** pin'ит на volume1 — master ищет replica на другом node.
+
+```bash
+./scripts/put_to_volume1.sh file.bin camera-1
+```
+
+Подробнее: [docs/chaos-expectations.md](docs/chaos-expectations.md)
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.chaos.yml up -d --build
@@ -59,7 +101,11 @@ Prometheus metrics sideweed: `http://localhost:8880/.prometheus/metrics`
 | `make up` | build + start stack |
 | `make down` | stop stack |
 | `make health` | wait for all services |
-| `make test` | smoke test put + get |
+| `make test` | smoke test put + get (bash) |
+| `make test-go` | Go integration tests |
+| `make test-all` | bash + Go |
+| `make build-cli` | `bin/fragment` |
+| `make put-v1` | PUT на volume1 (dc1, replication 000) |
 | `make chaos-matrix` | прогнать все fault-сценарии |
 | `make chaos-volume-down` | stop volume1 |
 | `make chaos-master-down` | stop master |
@@ -72,6 +118,7 @@ Prometheus metrics sideweed: `http://localhost:8880/.prometheus/metrics`
 |--------|----------|
 | `scripts/wait-healthy.sh` | readiness + schema |
 | `scripts/put_fragment.sh` | assign → **direct PUT** → Cassandra → verify GET via sideweed |
+| `scripts/put_to_volume1.sh` | PUT pinned to volume1 (`dc1`, `replication=000`) |
 | `scripts/get_fragment.sh` | SELECT + **GET via sideweed** |
 | `scripts/chaos/run_matrix.sh` | автоматический прогон всех сценариев |
 
