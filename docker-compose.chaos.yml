@@ -1,0 +1,9 @@
+# Optional override for chaos testing with privileged volume access.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.chaos.yml up -d
+services:
+  volume1:
+    cap_add:
+      - SYS_ADMIN
+  volume2:
+    cap_add:
+      - SYS_ADMIN
