@@ -1,6 +1,6 @@
 # sideweed is cloned separately; only our Dockerfile is tracked
-sideweed/*
-!sideweed/Dockerfile
+/sideweed/*
+!/sideweed/Dockerfile
 
 # local test artifacts
 /tmp/
