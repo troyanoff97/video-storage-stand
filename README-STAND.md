@@ -54,14 +54,19 @@ make chaos-volume1  # fault tests pinned to volume1 (stop volume2)
 ## Репозиторий и fork
 
 - **Стенд (этот repo):** docker-compose, scripts, Go client, tests
-- **sideweed submodule:** [github.com/troyanoff97/sideweed](https://github.com/troyanoff97/sideweed) (ваш fork)
+- **sideweed submodule:** [github.com/troyanoff97/sideweed](https://github.com/troyanoff97/sideweed)
+- **SeaweedFS fork:** [github.com/troyanoff97/seaweedfs](https://github.com/troyanoff97/seaweedfs) — локальный clone `./seaweedfs`, образ собирается из форка (не `chrislusf/seaweedfs`)
 
 ```bash
-git submodule sync
-git submodule update --init --recursive
+git submodule sync && git submodule update --init --recursive
+
+# SeaweedFS (если ./seaweedfs ещё нет):
+git clone -b feat/volume-disk-health-isolation https://github.com/troyanoff97/seaweedfs.git seaweedfs
 ```
 
-Dockerfile: `docker/sideweed.Dockerfile`, build context — submodule `./sideweed`.
+Dockerfiles: `docker/sideweed.Dockerfile` (context `./sideweed`), `docker/seaweedfs.Dockerfile` (context `./seaweedfs`).
+
+> **Политика:** все изменения — в ваших fork'ах, **push только вручную с вашей машины** (агент не пушит).
 
 ## Pin assign на volume1 (chaos-тесты)
 

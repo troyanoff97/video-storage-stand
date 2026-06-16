@@ -4,3 +4,5 @@
 chaos-matrix-results.txt
 chaos-volume1-results.txt
 bin/
+# SeaweedFS fork — отдельный git repo (github.com/troyanoff97/seaweedfs)
+seaweedfs/

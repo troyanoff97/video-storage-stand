@@ -24,6 +24,7 @@ help:
 init:
 	git submodule sync --recursive
 	git submodule update --init --recursive
+	@test -d seaweedfs/weed || (echo "Missing seaweedfs fork. Clone:" && echo "  git clone -b feat/volume-disk-health-isolation https://github.com/troyanoff97/seaweedfs.git seaweedfs" && exit 1)
 
 up: init
 	$(COMPOSE) up -d --build
