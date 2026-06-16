@@ -1,7 +1,4 @@
-# sideweed is cloned separately; only our Dockerfile is tracked
-/sideweed/*
-!/sideweed/Dockerfile
-
 # local test artifacts
 /tmp/
 *.bin
+chaos-matrix-results.txt

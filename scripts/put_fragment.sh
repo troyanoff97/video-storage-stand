@@ -18,6 +18,9 @@ MASTER_URL="${MASTER_URL:-http://localhost:9333}"
 SIDEWEED_URL="${SIDEWEED_URL:-http://localhost:8880}"
 REPLICATION="${REPLICATION:-001}"
 
+# shellcheck source=volume_url.sh
+source "$(dirname "${BASH_SOURCE[0]}")/volume_url.sh"
+
 if [[ ! -f "$FILE" ]]; then
   echo "ERROR: file not found: $FILE" >&2
   exit 1
@@ -31,20 +34,31 @@ fi
 SIZE=$(stat -c%s "$FILE")
 
 echo "==> Assign from master (replication=${REPLICATION})"
-ASSIGN=$(curl -sf "${MASTER_URL}/dir/assign?count=1&replication=${REPLICATION}")
-echo "$ASSIGN" | jq .
+set +e
+ASSIGN=$(curl -s -w "\nHTTP_CODE:%{http_code}" "${MASTER_URL}/dir/assign?count=1&replication=${REPLICATION}")
+ASSIGN_HTTP=$(echo "$ASSIGN" | awk -F: '/HTTP_CODE:/ {print $2}')
+ASSIGN_BODY=$(echo "$ASSIGN" | sed '/HTTP_CODE:/d')
+set -e
 
-FID=$(echo "$ASSIGN" | jq -r .fid)
-VOLUME_URL=$(echo "$ASSIGN" | jq -r .url)
+echo "$ASSIGN_BODY" | jq . 2>/dev/null || echo "$ASSIGN_BODY"
+
+if [[ "$ASSIGN_HTTP" != "200" ]]; then
+  echo "ERROR: assign failed with HTTP ${ASSIGN_HTTP}" >&2
+  exit 22
+fi
+
+FID=$(echo "$ASSIGN_BODY" | jq -r .fid)
+VOLUME_URL=$(echo "$ASSIGN_BODY" | jq -r .url)
 
 if [[ -z "$FID" || "$FID" == "null" ]]; then
   echo "ERROR: failed to get fid from assign response" >&2
   exit 1
 fi
 
-echo "==> PUT via sideweed (assigned volume: ${VOLUME_URL}, fid: ${FID})"
+echo "==> PUT directly to assigned volume (assigned: ${VOLUME_URL}, fid: ${FID})"
+DIRECT_VOLUME_URL=$(resolve_volume_url "${VOLUME_URL}")
 HTTP_CODE=$(curl -s -o /tmp/put_response.txt -w "%{http_code}" \
-  -X POST -F "file=@${FILE}" "${SIDEWEED_URL}/${FID}")
+  -X POST -F "file=@${FILE}" "${DIRECT_VOLUME_URL}/${FID}")
 
 if [[ "$HTTP_CODE" != "201" && "$HTTP_CODE" != "200" ]]; then
   echo "ERROR: PUT failed with HTTP ${HTTP_CODE}" >&2
