@@ -4,6 +4,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
 VOLUME="${1:-volume1}"
 
+compose up -d "$VOLUME"
+sleep 3
+
 echo "Remounting /data read-only on ${VOLUME}..."
 compose exec --privileged "$VOLUME" sh -c '
   mount -o remount,ro /data 2>/dev/null || {
