@@ -1,11 +1,11 @@
 # Локальный стенд: SeaweedFS + Cassandra + sideweed
 
-Минимальный Docker Compose стенд для тестирования записи видеофрагментов через Native Volume API (`/dir/assign` → PUT/GET) с sideweed как HTTP load balancer перед volume nodes.
+Минимальный Docker Compose стенд для тестирования записи видеофрагментов через Native Volume API с sideweed как HTTP load balancer для **чтения**.
 
 ## Требования
 
 - Docker + Docker Compose v2
-- `curl`, `jq`, `python3`
+- `curl`, `jq`, `python3`, `make`
 - ~2 GB свободной RAM (Cassandra)
 
 ## Быстрый старт
@@ -13,126 +13,150 @@
 ```bash
 cd /home/cerf/Desktop/work2
 
-# sideweed уже в ./sideweed (git clone)
+# sideweed — git submodule
+git submodule update --init --recursive
+
+make up
+make health
+make test
+```
+
+Или вручную:
+
+```bash
 docker compose -f docker-compose.yml -f docker-compose.chaos.yml up -d --build
 ./scripts/wait-healthy.sh
-
-# Health checks
-curl -sf http://localhost:9333/cluster/status | jq .
-curl -sf http://localhost:8080/healthz
-curl -sf http://localhost:8081/healthz
-curl -sf http://localhost:8880/v1/health
-docker compose exec cassandra cqlsh -e "DESCRIBE KEYSPACES"
-
-# Smoke test
-dd if=/dev/urandom of=/tmp/test-fragment.bin bs=1M count=1 status=none
-./scripts/put_fragment.sh /tmp/test-fragment.bin camera-1
-# fragment_id печатается в выводе SUCCESS
-./scripts/get_fragment.sh camera-1 <fragment_id>
 ```
 
 ## Архитектура
 
 ```
-Client → master:9333 (/dir/assign)
-Client → sideweed:8880 (PUT/GET /{fid})
+Client → master:9333        (/dir/assign)
+Client → volumeN:808x       (PUT — напрямую на assigned volume)
+Client → sideweed:8880      (GET — через LB)
          ├→ volume1:8080
          └→ volume2:8080
-Client → cassandra:9042 (metadata)
+Client → cassandra:9042     (metadata)
 ```
+
+**Write/read split:** PUT идёт **напрямую** на volume из assign (`volume1:8080` → `localhost:8080`, `volume2:8080` → `localhost:8081`). GET — **через sideweed** для тестирования failover.
 
 | Сервис    | Host port | Назначение                          |
 |-----------|-----------|-------------------------------------|
 | master    | 9333      | assign, topology                    |
 | volume1   | 8080      | primary volume node                 |
 | volume2   | 8081      | replica node (replication `001`)    |
-| sideweed  | 8880      | LB перед volume nodes               |
+| sideweed  | 8880      | LB для GET                          |
 | cassandra | 9042      | метаданные фрагментов               |
 
 Prometheus metrics sideweed: `http://localhost:8880/.prometheus/metrics`
 
-## Проверка топологии SeaweedFS
+## Makefile
 
-```bash
-curl -s http://localhost:9333/dir/status | jq .
-curl -s http://localhost:9333/vol/status | jq .
-docker compose logs sideweed --tail=20
-```
+| Target | Описание |
+|--------|----------|
+| `make init` | `git submodule update --init` |
+| `make up` | build + start stack |
+| `make down` | stop stack |
+| `make health` | wait for all services |
+| `make test` | smoke test put + get |
+| `make chaos-matrix` | прогнать все fault-сценарии |
+| `make chaos-volume-down` | stop volume1 |
+| `make chaos-master-down` | stop master |
+| `make chaos-reset` | reset volume1 state |
+| `make clean` | down + удалить volumes |
 
 ## Тестовые скрипты
 
 | Скрипт | Описание |
 |--------|----------|
-| `scripts/wait-healthy.sh` | Ждёт readiness всех сервисов, применяет schema |
-| `scripts/put_fragment.sh <file> <camera_id> [fragment_id]` | assign → PUT via sideweed → Cassandra INSERT → verify GET |
-| `scripts/get_fragment.sh <camera_id> <fragment_id> [out]` | SELECT из Cassandra + GET blob |
+| `scripts/wait-healthy.sh` | readiness + schema |
+| `scripts/put_fragment.sh` | assign → **direct PUT** → Cassandra → verify GET via sideweed |
+| `scripts/get_fragment.sh` | SELECT + **GET via sideweed** |
+| `scripts/chaos/run_matrix.sh` | автоматический прогон всех сценариев |
 
-Переменные окружения (опционально): `MASTER_URL`, `SIDEWEED_URL`, `REPLICATION`.
+Переменные окружения: `MASTER_URL`, `SIDEWEED_URL`, `REPLICATION`.
 
 ## Chaos / fault injection
 
-Используйте compose с chaos override (даёт `SYS_ADMIN` volume nodes):
-
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.chaos.yml ...
+make chaos-matrix          # полный прогон, результат в chaos-matrix-results.txt
+make chaos-volume-down     # или отдельные сценарии
+make chaos-reset
 ```
 
-| Скрипт | Симуляция | Recovery |
-|--------|-----------|----------|
-| `scripts/chaos/volume_down.sh [volume1\|volume2]` | Остановка volume node | `volume_up.sh` |
-| `scripts/chaos/master_down.sh` | Master недоступен | `master_up.sh` |
-| `scripts/chaos/mount_unavailable.sh [volume1]` | `chmod 000 /data` | `reset_volumes.sh` |
-| `scripts/chaos/disk_full.sh [volume1]` | Заполнение диска | `reset_volumes.sh` |
-| `scripts/chaos/disk_readonly.sh [volume1]` | remount ro `/data` | `reset_volumes.sh` |
-| `scripts/chaos/reset_volumes.sh [volume1]` | Сброс состояния volume | — |
+## Результаты chaos-матрицы (2026-06-16, реальный прогон)
 
-### Пример сценария: volume down
+| # | Сценарий | Assign | PUT | GET (sideweed) | Ключевые логи |
+|---|----------|--------|-----|----------------|---------------|
+| 0 | baseline | HTTP 200 | HTTP 201, direct volume2 | HTTP 200 | — |
+| 1 | volume1 down | **HTTP 406** | не дошло | **HTTP 200** (replica volume2) | sideweed: `"Status":"down"`, `"Err":"server misbehaving"` для volume1; master: `No writable volumes and no free volumes left` |
+| 2 | mount unavailable (chmod 000 /data) | **HTTP 406** | не дошло | — | volume1: `FATAL Check Data Folder(-dir) Writable /data : Not writable!`; sideweed: volume1 DOWN |
+| 3 | disk full (volume1) | HTTP 200 → volume2 | **exit 23** (write error на volume2 после fill) | — | fill ~48GB на volume1; assign ушёл на volume2 |
+| 4 | disk read-only (volume1) | HTTP 200 → volume2 | HTTP 201 (volume2) | **HTTP 200** | remount ro на volume1; write обошёл через assign на volume2 |
+| 5 | master down | **HTTP 000** (connection refused) | — | **HTTP 200** | volume1: `heartbeat to master:9333 error: rpc error: code = Unavailable desc = error reading from server: EOF` |
 
-```bash
-./scripts/put_fragment.sh /tmp/test-fragment.bin camera-1   # baseline OK
-docker compose stop volume1
-sleep 5
-./scripts/put_fragment.sh /tmp/test-fragment.bin camera-1   # PUT may fail
-docker compose logs sideweed --tail=30
-docker compose start volume1
+### Детали по HTTP-кодам
+
+**Assign `/dir/assign`:**
+- OK: `200` + `{"fid":"...","url":"volumeN:8080"}`
+- Нет writable volumes: `406` + `"error":"failed to find writable volumes...No writable volumes and no free volumes left"`
+- Master down: curl exit `7`, `HTTP_CODE:000`
+
+**PUT (direct volume):**
+- OK: `201` + `{"name":"...","size":...,"eTag":"..."}`
+- Write error: exit `23` (curl write error) или HTTP `500`
+
+**GET (via sideweed):**
+- OK: `200`, blob size совпадает
+- При replication `001` GET работает даже когда volume1 down (sideweed → volume2)
+
+### Sideweed log patterns
+
+```json
+{"Type":"LOG","Endpoint":"http://volume1:8080","Status":"down","Error":{...,"Err":"server misbehaving"}}
+{"type":"TRACE","host":"http://volume2:8080","statusCode":200,"method":"GET","path":"/4,08621f9973"}
 ```
 
-## Наблюдения: что ломается и где смотреть
+### Volume log patterns
 
-| Сценарий | Master | Sideweed | Volume logs | Client symptom | Cassandra |
-|----------|--------|----------|-------------|----------------|-----------|
-| volume down | topology update | backend DOWN, 502 if all down | heartbeat stop | PUT fail / GET maybe OK | INSERT only if PUT ok |
-| mount gone | volume errors | proxy 5xx → DOWN | permission denied | PUT fail | no new rows |
-| disk full | low space flag | proxy 5xx | ENOSPC | PUT fail | no new rows |
-| disk ro | — | may stay UP | read-only fs | PUT fail, GET ok | no new rows |
-| master down | down | unaffected | heartbeat errors | assign fail | unaffected |
-
-### Где смотреть логи
-
-```bash
-docker compose logs master --tail=50
-docker compose logs volume1 --tail=50
-docker compose logs volume2 --tail=50
-docker compose logs sideweed --tail=50
-docker compose logs cassandra --tail=50
+```
+F0616 volume.go:159 Check Data Folder(-dir) Writable /data : Not writable!
+I0616 volume_grpc_client_to_master.go:71 heartbeat to master:9333 error: rpc error: code = Unavailable desc = error reading from server: EOF
 ```
 
-**Sideweed:** JSON-логи UP/DOWN transitions (`-l --json`), метрики `sideweed_errors_total`.
+## Наблюдения
 
-**Volume:** ошибки записи (`permission denied`, `read-only file system`, `no space left on device`), heartbeat errors при падении master.
+| Сценарий | Master | Sideweed | Client PUT | Client GET | Cassandra |
+|----------|--------|----------|------------|------------|-----------|
+| volume down | assign 406 | volume1 DOWN | fail (no assign) | OK via volume2 | no new row |
+| mount gone | assign 406 | volume1 DOWN | fail | — | no new row |
+| disk full | assign 200 | — | fail (curl 23) | — | no new row |
+| disk ro | assign 200 (volume2) | volume1 UP | OK on volume2 | OK | new row |
+| master down | down | unaffected | fail (assign) | OK | unaffected |
 
-**Важно:** `/healthz` volume server не отражает disk full/ro — sideweed узнаёт о проблеме через failed PUT (ErrorHandler).
+**Важно:** `/healthz` не отражает disk full/ro — sideweed помечает backend DOWN только при DNS/connection error или после failed proxy.
 
-## Точки интеграции (для прикладного кода)
+## Точки интеграции
 
-1. **Blob client** — после assign заменить host volume URL на `sideweed:8880`; retry при 502/500.
-2. **Assign** — `GET master:9333/dir/assign?replication=001`; circuit breaker при недоступности master.
-3. **Metadata** — write-after-successful-PUT в Cassandra; read = SELECT fid + GET через sideweed.
-4. **Monitoring** — scrape `/.prometheus/metrics`, `/healthz` per volume, `/cluster/status` master.
+1. **Write path** — PUT на direct URL из assign (`resolve_volume_url`).
+2. **Read path** — GET через sideweed `:8880`.
+3. **Assign** — обрабатывать HTTP 406 (no writable volumes) и connection refused (master down).
+4. **Metadata** — INSERT в Cassandra только после успешного PUT.
 
-## Остановка и очистка
+## Остановка
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.chaos.yml down
-docker compose -f docker-compose.yml -f docker-compose.chaos.yml down -v   # удалить volumes
+make down
+make clean   # + удалить volumes
 ```
+
+## Submodule
+
+```bash
+git submodule update --init --recursive
+# обновление sideweed:
+cd sideweed && git pull origin master && cd ..
+```
+
+Dockerfile для сборки: [`docker/sideweed.Dockerfile`](docker/sideweed.Dockerfile) (build context: `./sideweed` submodule).
