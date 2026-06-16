@@ -52,7 +52,9 @@ services:
       start_period: 15s
 
   sideweed:
-    build: ./sideweed
+    build:
+      context: ./sideweed
+      dockerfile: ../docker/sideweed.Dockerfile
     command: >
       -l --json --health-path=/healthz --health-duration=3s
       --address=:8880 http://volume1:8080 http://volume2:8080
