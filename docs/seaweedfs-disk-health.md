@@ -1,10 +1,12 @@
 # SeaweedFS weed-volume: per-disk health isolation
 
-Fork: **https://github.com/troyanoff97/seaweedfs** (ветка `feat/volume-disk-health-isolation`, локально `./seaweedfs`).
+Патчи в локальном clone `./seaweedfs` (ветка `feat/volume-disk-health-isolation`), база — upstream [seaweedfs/seaweedfs](https://github.com/seaweedfs/seaweedfs) tag 3.80.
 
-Стенд собирает образ из форка: `docker/seaweedfs.Dockerfile` → `make up` (не upstream `chrislusf/seaweedfs`).
+**GitHub-fork для SeaweedFS:** отдельного репозитория нет. **sideweed fork:** [github.com/troyanoff97/sideweed](https://github.com/troyanoff97/sideweed).
 
-> Push в remote не выполняется автоматически — только локальные коммиты.
+Стенд: `docker/seaweedfs.Dockerfile` → `make up` (не `chrislusf/seaweedfs`).
+
+> Push не выполняется агентом.
 
 ## Логика
 
@@ -28,9 +30,9 @@ Fork: **https://github.com/troyanoff97/seaweedfs** (ветка `feat/volume-disk
 | **isDiskSpaceLow** | Как раньше — readonly volumes + skip в FindFreeLocation |
 
 **Переход в unhealthy:**
-- I/O error при write/read/delete (`IsDiskError`)
-- `-dir` недоступен при старте (multi-dir: warn, не FATAL)
-- Ошибка роста volume на диске
+- I/O error при write/read/delete (`IsDiskError`, incl. permission denied)
+- `-dir` недоступен при старте (single- or multi-dir: warn + unhealthy, FATAL только если **все** `-dir` недоступны)
+- Ошибка роста volume на диске (`addVolume` → `ReportDiskError`)
 
 **Recovery (каждую минуту):**
 - `util.TestFolderWritable(dir)` → если OK, лог `recovered and is healthy again`
@@ -50,45 +52,57 @@ E ... disk location /data1 not writable at startup: Not writable!
 | `weed/storage/disk_health.go` | **NEW** `IsDiskError` |
 | `weed/storage/disk_location_health.go` | **NEW** `IsHealthyForWrites`, `ReportDiskError`, `markUnhealthy`, `tryRecoverHealth` |
 | `weed/storage/disk_location.go` | health fields; `checkHealthAndDiskSpace`; I/O on load |
-| `weed/storage/store.go` | `NewStore` startup check; `FindFreeLocation` skip unhealthy |
+| `weed/storage/store.go` | `NewStore` startup check; `FindFreeLocation` skip unhealthy; `addVolume` → `ReportDiskError` |
 | `weed/storage/volume_write.go` | `checkReadWriteError` → `ReportDiskError` |
-| `weed/command/volume.go` | multi-dir: не FATAL на одном bad `-dir` |
+| `weed/command/volume.go` | single/multi-dir: FATAL only when **no** writable `-dir`; else start unhealthy |
 
 ## Тесты
 
 ```bash
 cd seaweedfs/weed
-go test ./storage/... -run 'TestIsDiskError|TestDiskLocationHealth|TestFindFreeLocation|TestStartupUnhealthy' -v
+go test ./storage/... -run 'TestIsDiskError|TestDiskLocationHealth|TestFindFreeLocation|TestStartupUnhealthy|TestAddVolumeReportsDiskError' -v
+```
+
+## Build (stand)
+
+```bash
+cd /home/cerf/Desktop/work2
+make up   # docker/seaweedfs.Dockerfile builds from ./seaweedfs
 ```
 
 ## Интеграционный сценарий (локальный стенд)
 
-1. Собрать образ из форка:
-   ```bash
-   cd seaweedfs/docker
-   docker build -t seaweedfs-disk-health:local -f Dockerfile.local ../..
-   ```
+**Multi-dir (recommended for patch demo):**
 
-2. Два `-dir` на volume node:
+```bash
+make chaos-multi-dir
+# compose: docker-compose.yml + chaos + multi-dir
+# volume1: -dir=/data1,/data2 -max=3,3
+```
+
+**Single-dir chaos** (`make chaos-volume1`) exercises disk full/ro but does not prove per-dir failover.
+
+1. Два `-dir` на volume node (already in `docker-compose.multi-dir.yml`):
+
    ```bash
    weed volume -dir=/data1,/data2 -max=3,3 -mserver=master:9333
    ```
 
-3. **Write error / disk full** — заполнить только `/data1`:
+2. **Write error / disk full** — заполнить только `/data1`:
+
    ```bash
-   docker compose exec volume1 sh -c 'fallocate -l 500M /data1/fill'
+   ./scripts/chaos/disk_fail_data1.sh fill volume1
    ./scripts/put_to_volume1.sh /tmp/test.bin chaos-write
-   # assign должен уйти на /data2; в логах — unhealthy для /data1 при ENOSPC
    ```
 
-4. **Read-only** — `mount -t tmpfs -o remount,ro tmpfs /data1` (см. `make chaos-volume1`)
+3. **Read-only** — `./scripts/chaos/disk_fail_data1.sh readonly volume1`
 
-5. **Mount unavailable** — `chmod 000 /data1` + restart не нужен: startup пометит unhealthy
+4. **Recovery** — `./scripts/chaos/reset_multi_dir_data1.sh volume1` → grep `recovered and is healthy again`
 
-6. **Recovery** — `reset_volumes.sh` / remount rw → через 1 мин или `tryRecoverHealth` в логах
+Customer private fork: [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md).
 
 ## Ограничения
 
-- Один `-dir` + он unhealthy → process всё ещё FATAL при старте (нет fallback)
 - Read с unhealthy диска возвращает ошибку клиенту (не скрывается)
 - `lastIoError` на volume по-прежнему может удалить volume на heartbeat (upstream behaviour)
+- Prometheus `/status` disk health export — not implemented (optional §4.4)

@@ -1,11 +1,12 @@
 COMPOSE := docker compose -f docker-compose.yml -f docker-compose.chaos.yml
+COMPOSE_MULTI := docker compose -f docker-compose.yml -f docker-compose.chaos.yml -f docker-compose.multi-dir.yml
 TEST_FILE := /tmp/test-fragment.bin
 GO := go
 
 .PHONY: help init up down logs health test test-go test-integration test-all put get clean build-cli \
 	chaos-volume-down chaos-volume-up chaos-master-down chaos-master-up \
 	chaos-mount-unavailable chaos-disk-full chaos-disk-readonly chaos-reset \
-	chaos-matrix put-v1
+	chaos-matrix chaos-recovery chaos-multi-dir put-v1 up-multi-dir
 
 help:
 	@echo "Targets:"
@@ -20,14 +21,20 @@ help:
 	@echo "  build-cli            build cmd/fragment binary"
 	@echo "  put-v1               put fragment pinned to volume1 (dc1)"
 	@echo "  chaos-matrix         run fault scenarios and save results"
+	@echo "  chaos-recovery       fault -> reset -> assert PUT/GET recovery"
+	@echo "  chaos-multi-dir      per-dir disk health demo (volume1 /data1,/data2)"
+	@echo "  up-multi-dir         start stack with multi-dir volume1"
 
 init:
 	git submodule sync --recursive
 	git submodule update --init --recursive
-	@test -d seaweedfs/weed || (echo "Missing seaweedfs fork. Clone:" && echo "  git clone -b feat/volume-disk-health-isolation https://github.com/troyanoff97/seaweedfs.git seaweedfs" && exit 1)
+	@test -d seaweedfs/weed || (echo "Missing ./seaweedfs (local SeaweedFS clone with patches). See docs/seaweedfs-disk-health.md" && exit 1)
 
 up: init
 	$(COMPOSE) up -d --build
+
+up-multi-dir: init
+	$(COMPOSE_MULTI) up -d --build
 
 down:
 	$(COMPOSE) down
@@ -93,7 +100,16 @@ chaos-reset:
 	./scripts/chaos/reset_volumes.sh volume1
 
 chaos-matrix:
+	chmod +x ./scripts/chaos/run_matrix.sh
 	./scripts/chaos/run_matrix.sh
+
+chaos-recovery:
+	chmod +x ./scripts/chaos/run_recovery.sh
+	./scripts/chaos/run_recovery.sh
+
+chaos-multi-dir:
+	chmod +x ./scripts/chaos/run_multi_dir_chaos.sh
+	./scripts/chaos/run_multi_dir_chaos.sh
 
 chaos-volume1:
 	chmod +x ./scripts/chaos/run_volume1_chaos.sh

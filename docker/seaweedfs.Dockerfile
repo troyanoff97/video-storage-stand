@@ -14,7 +14,7 @@ RUN CGO_ENABLED=0 go build -C weed \
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates curl fuse
-COPY --from=builder /weed /usr/local/bin/weed
+COPY --from=builder /weed /usr/bin/weed
 COPY docker/entrypoint.sh /entrypoint.sh
 COPY docker/filer.toml /etc/seaweedfs/filer.toml
 RUN chmod +x /entrypoint.sh

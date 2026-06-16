@@ -30,9 +30,32 @@ Go client (`pkg/fragment`): `AssignWithRetry` (406/5xx), `PutDirectWithRetry`, `
 
 ### mount unavailable (chmod 000 /data on volume1)
 
-- volume1: **FATAL** `Check Data Folder(-dir) Writable /data : Not writable!`
-- assign: **HTTP 406** when no other writable capacity
+- **Single `-dir` (default stand):** volume1 may **FATAL** on restart (`Check Data Folder Writable`) — does not demo per-dir patch; use multi-dir stand for isolation demo.
+- assign: **HTTP 406** when no other writable capacity (pinned volume1)
 - sideweed: volume1 marked DOWN after container crash
+
+### all volumes down
+
+- assign: **HTTP 000** (connection refused / no backend)
+- PUT: **fail**
+- GET via sideweed: **fail**
+
+### sideweed down
+
+- PUT (direct volume): **OK** (bypasses sideweed by design)
+- GET via sideweed: **fail** (curl exit 7 / connection refused)
+
+### recovery (`make chaos-recovery`)
+
+- fault: volume1 stopped (volume2 stopped for pin) → assign **406**, PUT **fail**
+- after `compose start volume1` + wait: assign **200**, PUT **OK** (tmpfs: baseline GET not asserted — data lost on restart)
+
+### multi-dir (`make chaos-multi-dir`)
+
+- volume1: `-dir=/data1,/data2` (see `docker-compose.multi-dir.yml`)
+- fill or remount ro **/data1 only** → logs `marked unhealthy` for /data1
+- PUT pinned to volume1 still **OK** (growth on /data2)
+- after reset: `recovered and is healthy again` within ~60s
 
 ### disk full on volume1 (`make chaos-volume1`, tmpfs 512M)
 
@@ -64,6 +87,10 @@ Go client (`pkg/fragment`): `AssignWithRetry` (406/5xx), `PutDirectWithRetry`, `
 | disk read-only | **406** | **fail (exit 22)** | logs: `read-only file system` |
 
 Results file: `chaos-volume1-results.txt` (gitignored).
+
+### Chaos matrix gates (`make chaos-matrix`)
+
+Exit code 0 only if all checks pass. Scenarios 6–7 cover all volumes down and sideweed down. See [STAND-TESTING.md](STAND-TESTING.md).
 
 ### Pin assign to volume1
 

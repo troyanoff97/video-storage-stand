@@ -4,6 +4,10 @@
 # volume1 uses tmpfs for /data so disk_readonly can remount,ro (named volumes
 # on the host root filesystem cannot be remounted read-only in-container).
 services:
+  master:
+    command: >
+      master -ip=master -ip.bind=0.0.0.0
+      -defaultReplication=001 -volumeSizeLimitMB=32
   volume1:
     cap_add:
       - SYS_ADMIN

@@ -54,19 +54,16 @@ make chaos-volume1  # fault tests pinned to volume1 (stop volume2)
 ## Репозиторий и fork
 
 - **Стенд (этот repo):** docker-compose, scripts, Go client, tests
-- **sideweed submodule:** [github.com/troyanoff97/sideweed](https://github.com/troyanoff97/sideweed)
-- **SeaweedFS fork:** [github.com/troyanoff97/seaweedfs](https://github.com/troyanoff97/seaweedfs) — локальный clone `./seaweedfs`, образ собирается из форка (не `chrislusf/seaweedfs`)
+- **sideweed (ваш fork, submodule):** [github.com/troyanoff97/sideweed](https://github.com/troyanoff97/sideweed)
+- **SeaweedFS:** локальный clone `./seaweedfs` с патчами (disk health); upstream — [seaweedfs/seaweedfs](https://github.com/seaweedfs/seaweedfs). Отдельного GitHub-fork пока нет — образ собирается из `./seaweedfs` на диске
 
 ```bash
-git submodule sync && git submodule update --init --recursive
-
-# SeaweedFS (если ./seaweedfs ещё нет):
-git clone -b feat/volume-disk-health-isolation https://github.com/troyanoff97/seaweedfs.git seaweedfs
+git submodule sync && git submodule update --init --recursive   # sideweed fork
 ```
 
 Dockerfiles: `docker/sideweed.Dockerfile` (context `./sideweed`), `docker/seaweedfs.Dockerfile` (context `./seaweedfs`).
 
-> **Политика:** все изменения — в ваших fork'ах, **push только вручную с вашей машины** (агент не пушит).
+> **Push:** агент не пушит; sideweed — в ваш fork при необходимости пушите сами.
 
 ## Pin assign на volume1 (chaos-тесты)
 
@@ -82,7 +79,7 @@ Dockerfiles: `docker/sideweed.Dockerfile` (context `./sideweed`), `docker/seawee
 make chaos-volume1
 ```
 
-Подробнее: [docs/chaos-expectations.md](docs/chaos-expectations.md)
+Подробнее: [docs/chaos-expectations.md](docs/chaos-expectations.md), [docs/STAND-TESTING.md](docs/STAND-TESTING.md)
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.chaos.yml up -d --build
@@ -126,7 +123,10 @@ Prometheus metrics sideweed: `http://localhost:8880/.prometheus/metrics`
 | `make test-all` | bash + Go |
 | `make build-cli` | `bin/fragment` |
 | `make put-v1` | PUT на volume1 (dc1, replication 000) |
-| `make chaos-matrix` | прогнать все fault-сценарии |
+| `make chaos-matrix` | прогнать все fault-сценарии (pass/fail gates) |
+| `make chaos-recovery` | fault → reset → assert PUT/GET |
+| `make chaos-multi-dir` | per-dir disk health на volume1 (/data1,/data2) |
+| `make up-multi-dir` | стек с multi-dir volume1 |
 | `make chaos-volume1` | volume1-only faults (disk full/ro) |
 | `make chaos-volume-down` | stop volume1 |
 | `make chaos-master-down` | stop master |
@@ -149,6 +149,8 @@ Prometheus metrics sideweed: `http://localhost:8880/.prometheus/metrics`
 
 ```bash
 make chaos-matrix          # полный прогон, результат в chaos-matrix-results.txt
+make chaos-recovery        # автоматический recovery-сценарий
+make chaos-multi-dir       # per-dir disk health demo
 make chaos-volume-down     # или отдельные сценарии
 make chaos-reset
 ```
