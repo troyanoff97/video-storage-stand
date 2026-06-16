@@ -8,6 +8,8 @@ import (
 	"crypto/rand"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -68,6 +70,9 @@ func TestAssignToVolume1DataCenter(t *testing.T) {
 		t.Skip("stand not running")
 	}
 
+	stopVolume2(t)
+	t.Cleanup(startVolume2)
+
 	client := fragment.NewSeaweedClient(fragment.SeaweedConfig{
 		MasterURL:   master,
 		SideweedURL: env("SIDEWEED_URL", "http://localhost:8880"),
@@ -95,6 +100,38 @@ func env(key, def string) string {
 		return v
 	}
 	return def
+}
+
+func projectRoot() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	return filepath.Clean(filepath.Join(wd, "..", ".."))
+}
+
+func compose(t *testing.T, args ...string) {
+	t.Helper()
+	cmd := exec.Command("docker", append([]string{
+		"compose", "-f", "docker-compose.yml", "-f", "docker-compose.chaos.yml",
+	}, args...)...)
+	cmd.Dir = projectRoot()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("docker compose %v: %v\n%s", args, err, out)
+	}
+}
+
+func stopVolume2(t *testing.T) {
+	t.Helper()
+	compose(t, "stop", "volume2")
+	time.Sleep(3 * time.Second)
+}
+
+func startVolume2() {
+	cmd := exec.Command("docker", "compose", "-f", "docker-compose.yml", "-f", "docker-compose.chaos.yml", "up", "-d", "volume2")
+	cmd.Dir = projectRoot()
+	_ = cmd.Run()
 }
 
 func reachable(url string) bool {
