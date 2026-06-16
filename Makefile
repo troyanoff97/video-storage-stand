@@ -15,6 +15,7 @@ help:
 	@echo "  health               wait for all services"
 	@echo "  test                 bash smoke test (put + get)"
 	@echo "  test-go              go integration tests (requires make up)"
+	@echo "  test-unit            go unit tests (resilience)"
 	@echo "  test-all             bash + go integration tests"
 	@echo "  build-cli            build cmd/fragment binary"
 	@echo "  put-v1               put fragment pinned to volume1 (dc1)"
@@ -92,3 +93,10 @@ chaos-reset:
 
 chaos-matrix:
 	./scripts/chaos/run_matrix.sh
+
+chaos-volume1:
+	chmod +x ./scripts/chaos/run_volume1_chaos.sh
+	./scripts/chaos/run_volume1_chaos.sh
+
+test-unit:
+	$(GO) test ./pkg/fragment/... -count=1 -v

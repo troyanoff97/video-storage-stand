@@ -7,15 +7,15 @@ VOLUME="${1:-volume1}"
 compose up -d "$VOLUME"
 sleep 3
 
-echo "Remounting /data read-only on ${VOLUME}..."
-compose exec --privileged "$VOLUME" sh -c '
-  mount -o remount,ro /data 2>/dev/null || {
-    echo "Direct remount failed; trying bind mount workaround..."
-    mkdir -p /data_ro
-    mount --bind /data /data_ro
-    mount -o remount,ro /data_ro
-    mount --bind /data_ro /data
-  }
+echo "Remounting ${VOLUME} /data read-only (tmpfs from docker-compose.chaos.yml)..."
+compose exec "$VOLUME" sh -c '
+  if ! grep -qE "[[:space:]]/data[[:space:]]" /proc/mounts; then
+    echo "ERROR: /data is not a mount point; use docker-compose.chaos.yml" >&2
+    exit 1
+  fi
+  mount -t tmpfs -o remount,ro tmpfs /data
+  mount | grep "tmpfs on /data"
+  touch /data/.ro-probe 2>/dev/null || echo "write probe failed (expected)"
 '
 
-echo "Done. PUT should fail; GET of existing data may still work."
+echo "Done. PUT to ${VOLUME} should fail; GET of existing data may still work."

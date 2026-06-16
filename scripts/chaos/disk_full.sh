@@ -15,11 +15,11 @@ compose exec "$VOLUME" sh -c '
     echo "Could not determine available space (avail_kb=${avail_kb})" >&2
     exit 1
   fi
-  if [ "$avail_kb" -le 10240 ]; then
+  if [ "$avail_kb" -le 1024 ]; then
     echo "Not enough free space (avail_kb=${avail_kb})" >&2
     exit 1
   fi
-  fill_kb=$((avail_kb - 10240))
+  fill_kb=$((avail_kb - 64))
   fill_bytes=$((fill_kb * 1024))
   if command -v fallocate >/dev/null 2>&1; then
     fallocate -l "$fill_bytes" /data/fill
