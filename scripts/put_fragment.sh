@@ -89,12 +89,16 @@ docker compose exec -T cassandra cqlsh -e \
    VALUES ('${CAMERA_ID}', ${FRAGMENT_ID}, '${FID}', ${SIZE}, '${CREATED_AT}');"
 
 echo "==> Verify GET via sideweed"
+if [[ "${SKIP_SIDEWEED_VERIFY:-0}" == "1" ]]; then
+  echo "SKIP_SIDEWEED_VERIFY=1 — skipping sideweed GET check"
+else
 curl -sf "${SIDEWEED_URL}/${FID}" -o /tmp/verify_fragment.bin
 VERIFY_SIZE=$(stat -c%s /tmp/verify_fragment.bin)
 
 if [[ "$VERIFY_SIZE" != "$SIZE" ]]; then
   echo "ERROR: size mismatch after GET (expected ${SIZE}, got ${VERIFY_SIZE})" >&2
   exit 1
+fi
 fi
 
 echo

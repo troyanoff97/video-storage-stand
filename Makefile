@@ -1,12 +1,13 @@
 COMPOSE := docker compose -f docker-compose.yml -f docker-compose.chaos.yml
 COMPOSE_MULTI := docker compose -f docker-compose.yml -f docker-compose.chaos.yml -f docker-compose.multi-dir.yml
+COMPOSE_PERSIST := docker compose -f docker-compose.yml -f docker-compose.persist.yml
 TEST_FILE := /tmp/test-fragment.bin
 GO := go
 
 .PHONY: help init up down logs health test test-go test-integration test-all put get clean build-cli \
 	chaos-volume-down chaos-volume-up chaos-master-down chaos-master-up \
 	chaos-mount-unavailable chaos-disk-full chaos-disk-readonly chaos-reset \
-	chaos-matrix chaos-recovery chaos-multi-dir put-v1 up-multi-dir
+	chaos-matrix chaos-recovery chaos-recovery-disk chaos-multi-dir put-v1 up-multi-dir up-persist
 
 help:
 	@echo "Targets:"
@@ -22,8 +23,10 @@ help:
 	@echo "  put-v1               put fragment pinned to volume1 (dc1)"
 	@echo "  chaos-matrix         run fault scenarios and save results"
 	@echo "  chaos-recovery       fault -> reset -> assert PUT/GET recovery"
+	@echo "  chaos-recovery-disk  disk ro -> soft reset -> GET baseline (no restart)"
 	@echo "  chaos-multi-dir      per-dir disk health demo (volume1 /data1,/data2)"
 	@echo "  up-multi-dir         start stack with multi-dir volume1"
+	@echo "  up-persist           volume1 on named volume (persistent /data)"
 
 init:
 	git submodule sync --recursive
@@ -35,6 +38,9 @@ up: init
 
 up-multi-dir: init
 	$(COMPOSE_MULTI) up -d --build
+
+up-persist: init
+	$(COMPOSE_PERSIST) up -d --build
 
 down:
 	$(COMPOSE) down
@@ -106,6 +112,10 @@ chaos-matrix:
 chaos-recovery:
 	chmod +x ./scripts/chaos/run_recovery.sh
 	./scripts/chaos/run_recovery.sh
+
+chaos-recovery-disk:
+	chmod +x ./scripts/chaos/run_recovery_disk.sh ./scripts/chaos/reset_volumes_soft.sh
+	./scripts/chaos/run_recovery_disk.sh
 
 chaos-multi-dir:
 	chmod +x ./scripts/chaos/run_multi_dir_chaos.sh

@@ -1,0 +1,10 @@
+# Named volume for volume1 (persistent data across container restarts).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
+services:
+  volume1:
+    cap_add:
+      - SYS_ADMIN
+    privileged: true
+    volumes: !reset
+      - volume1_data:/data
+    tmpfs: !reset []

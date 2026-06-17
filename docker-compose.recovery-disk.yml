@@ -1,0 +1,10 @@
+# Bind-mount /data for disk ro recovery tests (data survives remount + volume restart).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.recovery-disk.yml up -d
+services:
+  volume1:
+    cap_add:
+      - SYS_ADMIN
+    privileged: true
+    volumes: !reset
+      - ./stand-data/volume1:/data
+    tmpfs: !reset []

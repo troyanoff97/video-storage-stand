@@ -5,6 +5,8 @@ chaos-matrix-results.txt
 chaos-volume1-results.txt
 chaos-recovery-results.txt
 chaos-multi-dir-results.txt
+chaos-recovery-disk-results.txt
+stand-data/
 bin/
 # SeaweedFS — локальный clone с патчами (отдельный git repo, не submodule)
 seaweedfs/
