@@ -99,7 +99,10 @@ make chaos-multi-dir
 
 4. **Recovery** — `./scripts/chaos/reset_multi_dir_data1.sh volume1` → grep `recovered and is healthy again`
 
-Customer private fork: [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md).
+Customer private fork: [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md).  
+Production (bare metal): [PRODUCTION-DEPLOY.md](PRODUCTION-DEPLOY.md).
+
+**Prometheus:** `-metricsPort=9324` in compose; metric `seaweed_volumeServer_disk_healthy{dir}`.
 
 ## Ограничения
 

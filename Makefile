@@ -63,7 +63,7 @@ test: test-file health
 	fid=$$(echo "$$out" | awk '/fragment_id:/ {print $$2}'); \
 	./scripts/get_fragment.sh camera-test "$$fid"
 
-test-go:
+test-go: health
 	$(GO) test -tags=integration -v -count=1 ./test/integration/...
 
 test-all: test test-go
@@ -114,7 +114,7 @@ chaos-recovery:
 	./scripts/chaos/run_recovery.sh
 
 chaos-recovery-disk:
-	chmod +x ./scripts/chaos/run_recovery_disk.sh ./scripts/chaos/reset_volumes_soft.sh
+	chmod +x ./scripts/chaos/run_recovery_disk.sh ./scripts/chaos/prepare_recovery_disk.sh ./scripts/chaos/disk_full_named.sh ./scripts/chaos/reset_volumes_soft_named.sh
 	./scripts/chaos/run_recovery_disk.sh
 
 chaos-multi-dir:

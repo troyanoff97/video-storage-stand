@@ -16,8 +16,9 @@ FROM alpine:3.20
 RUN apk add --no-cache ca-certificates curl fuse
 COPY --from=builder /weed /usr/bin/weed
 COPY docker/entrypoint.sh /entrypoint.sh
+COPY docker/recovery-disk-entrypoint.sh /recovery-disk-entrypoint.sh
 COPY docker/filer.toml /etc/seaweedfs/filer.toml
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh /recovery-disk-entrypoint.sh
 WORKDIR /data
 VOLUME /data
 EXPOSE 9333 8080 8888 8333

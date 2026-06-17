@@ -28,11 +28,17 @@ Go client (`pkg/fragment`): `AssignWithRetry` (406/5xx), `PutDirectWithRetry`, `
 - GET via sideweed: **HTTP 200** (replica on volume2)
 - sideweed log: `"Status":"down"` for `http://volume1:8080`, DNS `server misbehaving`
 
-### mount unavailable (chmod 000 /data on volume1)
+### mount unavailable (volume1)
 
-- **Single `-dir` (default stand):** volume1 may **FATAL** on restart (`Check Data Folder Writable`) — does not demo per-dir patch; use multi-dir stand for isolation demo.
-- assign: **HTTP 406** when no other writable capacity (pinned volume1)
-- sideweed: volume1 marked DOWN after container crash
+- **Single `-dir` + tmpfs remount ro:** volume stays up; assign/PUT fail when no other writable node.
+- Use **`docker-compose.chaos.yml`** (tmpfs + privileged).
+
+### recovery disk (`make chaos-recovery-disk`)
+
+- Loop-backed ext4 at `/vol` (`/meta/disk.img`, `mkfs -m 0`) — data survives fault.
+- `disk_full_named.sh` fills `/vol` → PUT fail, GET baseline **OK**.
+- `reset_volumes_soft_named.sh` removes fill → PUT + GET **OK**.
+- **Not** tmpfs remount ro (tmpfs ro wipes blobs; bind-mount ro unreliable in container).
 
 ### all volumes down
 
@@ -57,14 +63,16 @@ Go client (`pkg/fragment`): `AssignWithRetry` (406/5xx), `PutDirectWithRetry`, `
 - PUT pinned to volume1 still **OK** (growth on /data2)
 - after reset: `recovered and is healthy again` within ~60s
 
-### disk full on volume1 (`make chaos-volume1`, tmpfs 512M)
+### disk full on volume1 (chaos: tmpfs 64M, `-volumeSizeLimitMB=8`, `-volumePreallocate=false`, volume1 `-max=1`)
 
-- `disk_full.sh` fills tmpfs to ~100% (`/data/fill`).
-- **Observed (2026-06-16):** PUT may still **succeed** if the needle fits in an already-open preallocated `.dat` volume (`volumeSizeLimitMB=256`). New volume growth fails when tmpfs is full.
-- volume log when growth blocked: `no space left on device` / HTTP **500** on PUT (seen on earlier runs with host disk fill).
-- **Mitigation:** `make clean && make up` between runs; or lower `-volumeSizeLimitMB` for chaos.
+- `disk_full.sh` fills tmpfs and verifies `touch /data` fails.
+- **Expected:** assign **406** or PUT fail when pinned to volume1 (`replication=000`).
 
-### disk read-only on volume1 (`make chaos-volume1`)
+### mount unavailable / read-only on volume1 (chaos tmpfs)
+
+- `mount_unavailable.sh` and `disk_readonly.sh` use **`mount -o remount,ro tmpfs /data`** (not `chmod 000`).
+- Write probe must fail before the script exits.
+- **Expected:** assign **406** / PUT fail when volume2 stopped and replication `000`.
 
 - `disk_readonly.sh`: `mount -t tmpfs -o remount,ro tmpfs /data` inside privileged volume1.
 - assign: **HTTP 406** — `No writable volumes`

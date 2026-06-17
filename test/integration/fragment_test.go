@@ -21,6 +21,7 @@ func TestFragmentUploadDownload(t *testing.T) {
 	if !reachable(master + "/cluster/status") {
 		t.Skip("stand not running; start with: make up")
 	}
+	ensureStackHealthy(t)
 
 	u, err := fragment.NewUploader(fragment.Config{
 		Seaweed: fragment.SeaweedConfig{
@@ -71,7 +72,13 @@ func TestAssignToVolume1DataCenter(t *testing.T) {
 	}
 
 	stopVolume2(t)
-	t.Cleanup(startVolume2)
+	t.Cleanup(func() {
+		startVolume2()
+		ensureStackHealthy(t)
+	})
+
+	compose(t, "restart", "volume1")
+	time.Sleep(12 * time.Second)
 
 	client := fragment.NewSeaweedClient(fragment.SeaweedConfig{
 		MasterURL:   master,
@@ -80,19 +87,24 @@ func TestAssignToVolume1DataCenter(t *testing.T) {
 		DataCenter:  "dc1",
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	assign, code, err := client.Assign(ctx)
-	if code == 406 {
-		t.Skip("dc1 has no free volumes (run: make clean && make up)")
+	deadline := time.Now().Add(90 * time.Second)
+	var lastCode int
+	var lastErr error
+	for attempt := 0; time.Now().Before(deadline); attempt++ {
+		if attempt == 8 {
+			compose(t, "restart", "volume1")
+			time.Sleep(10 * time.Second)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		assign, code, err := client.Assign(ctx)
+		cancel()
+		lastCode, lastErr = code, err
+		if err == nil && code == http.StatusOK && assign.URL == "volume1:8080" {
+			return
+		}
+		time.Sleep(2 * time.Second)
 	}
-	if err != nil {
-		t.Fatalf("assign dc1: code=%d err=%v", code, err)
-	}
-	if assign.URL != "volume1:8080" {
-		t.Fatalf("expected volume1:8080, got %s", assign.URL)
-	}
+	t.Fatalf("assign to volume1 failed after retries: code=%d err=%v", lastCode, lastErr)
 }
 
 func env(key, def string) string {
@@ -132,6 +144,12 @@ func startVolume2() {
 	cmd := exec.Command("docker", "compose", "-f", "docker-compose.yml", "-f", "docker-compose.chaos.yml", "up", "-d", "volume2")
 	cmd.Dir = projectRoot()
 	_ = cmd.Run()
+}
+
+func ensureStackHealthy(t *testing.T) {
+	t.Helper()
+	compose(t, "up", "-d", "master", "volume1", "volume2")
+	time.Sleep(10 * time.Second)
 }
 
 func reachable(url string) bool {

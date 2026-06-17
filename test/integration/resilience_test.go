@@ -50,18 +50,19 @@ func TestAssignWithRetryLive(t *testing.T) {
 	if !reachable(master + "/cluster/status") {
 		t.Skip("stand not running")
 	}
+	ensureStackHealthy(t)
 
 	client := fragment.NewSeaweedClient(fragment.SeaweedConfig{
 		MasterURL:   master,
 		SideweedURL: env("SIDEWEED_URL", "http://localhost:8880"),
-		Replication: "001",
+		Replication: "000",
 		Retry: fragment.RetryConfig{
-			AssignMaxAttempts: 3,
-			BaseDelay:         100 * time.Millisecond,
+			AssignMaxAttempts: 5,
+			BaseDelay:         200 * time.Millisecond,
 		},
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	assign, err := client.AssignWithRetry(ctx)

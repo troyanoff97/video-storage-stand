@@ -78,14 +78,24 @@ Results: `chaos-multi-dir-results.txt`. Checks:
 - remount /data1 ro → logs `marked unhealthy`, PUT OK
 - reset /data1 → logs `recovered and is healthy again`
 
-## 6. SeaweedFS unit tests (patch, no Docker)
+## 6. Metrics and /status
+
+```bash
+curl -s http://localhost:8080/status | jq .DiskHealth
+curl -s http://localhost:9324/metrics | grep disk_healthy   # volume1
+curl -s http://localhost:9325/metrics | grep disk_healthy   # volume2
+```
+
+Volumes expose `-metricsPort=9324` in compose (host 9324/9325).
+
+## 7. SeaweedFS unit tests (patch, no Docker)
 
 ```bash
 cd seaweedfs/weed
 go test ./storage/... -run 'TestIsDiskError|TestDiskLocationHealth|TestFindFreeLocation|TestStartupUnhealthy|TestAddVolumeReportsDiskError' -v
 ```
 
-## 7. Individual chaos scripts
+## 8. Individual chaos scripts
 
 ```bash
 make chaos-volume-down && make chaos-volume-up
@@ -110,7 +120,7 @@ make chaos-disk-readonly && make chaos-reset
 - [README-STAND.md](../README-STAND.md) — architecture, Makefile, observations
 - [docs/chaos-expectations.md](chaos-expectations.md) — HTTP codes and log patterns
 - [docs/seaweedfs-disk-health.md](seaweedfs-disk-health.md) — patch design and build
-- [docs/seaweedfs-customer-fork.md](seaweedfs-customer-fork.md) — private fork setup (manual push)
+- [docs/PRODUCTION-DEPLOY.md](PRODUCTION-DEPLOY.md) — bare metal volume node
 
 ## Agent policy
 

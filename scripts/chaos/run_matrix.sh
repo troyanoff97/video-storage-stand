@@ -31,7 +31,6 @@ try_put() {
   local label="$1"
   local expect_fail="${2:-0}"
   local data_center="${3:-}"
-  local soft_fail="${4:-0}"
   set +e
   local out code
   if [[ "$data_center" == "dc1-v1" ]]; then
@@ -45,11 +44,7 @@ try_put() {
   log "PUT [${label}] dataCenter=${data_center:-any}: exit=${code} (expect_fail=${expect_fail})"
   log "$out"
   if [ "$expect_fail" = "1" ] && [ "$code" -eq 0 ]; then
-    if [ "$soft_fail" = "1" ]; then
-      log "WARN: PUT succeeded during fault ${label} (known tmpfs/preallocate flake)"
-    else
-      fail "PUT succeeded during fault ${label}"
-    fi
+    fail "PUT succeeded during fault ${label}"
   elif [ "$expect_fail" = "0" ] && [ "$code" -ne 0 ]; then
     fail "PUT failed when healthy ${label}"
   fi
@@ -125,7 +120,7 @@ log "Chaos matrix run: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 compose up -d --build
 ./scripts/wait-healthy.sh 2>&1 | tee -a "$RESULTS"
 
-dd if=/dev/urandom of="$TEST_FILE" bs=384K count=1 status=none
+dd if=/dev/urandom of="$TEST_FILE" bs=512K count=1 status=none
 
 section "baseline (healthy stack)"
 baseline_out=$(./scripts/put_fragment.sh "$TEST_FILE" "${CAMERA}-baseline" 2>&1) || true
@@ -153,14 +148,14 @@ pin_volume1_only
 section "2 mount unavailable (volume1)"
 ./scripts/chaos/mount_unavailable.sh volume1
 sleep 3
-try_put mount-unavailable 1 dc1-v1 1
+try_put mount-unavailable 1 dc1-v1
 capture_logs volume1
 ./scripts/chaos/reset_volumes.sh volume1 || true
 sleep 8
 
 section "3 disk full (volume1)"
 ./scripts/chaos/disk_full.sh volume1 || true
-try_put disk-full 1 dc1-v1 1
+try_put disk-full 1 dc1-v1
 capture_logs volume1
 ./scripts/chaos/reset_volumes.sh volume1 || true
 sleep 8
@@ -169,7 +164,8 @@ section "4 disk read-only (volume1)"
 ./scripts/chaos/disk_readonly.sh volume1 || true
 try_put disk-readonly 1 dc1-v1
 compose up -d volume2 2>/dev/null || true
-sleep 5
+sleep 10
+./scripts/wait-healthy.sh 2>&1 | tail -3 | tee -a "$RESULTS" || true
 try_get disk-readonly "$BASELINE_FRAGMENT" 0
 capture_logs volume1
 ./scripts/chaos/reset_volumes.sh volume1 || true

@@ -9,5 +9,3 @@ COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.recovery-disk.ym
 compose() {
   "${COMPOSE[@]}" "$@"
 }
-
-mkdir -p "${ROOT_DIR}/stand-data/volume1"
