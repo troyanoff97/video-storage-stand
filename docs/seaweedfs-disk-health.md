@@ -12,100 +12,111 @@
 
 ```
                     ┌─────────────────┐
-  PUT / assign ───► │  Store          │
-                    │ FindFreeLocation│──► skip unhealthy + diskSpaceLow
-                    └────────┬────────┘
-                             │
+  PUT / assign ───► │  Master         │
+                    │ VolumeLayout    │──► skip ReadOnly volume IDs
+                    └────────▲────────┘
+                             │ heartbeat (ReadOnly per volume)
               ┌──────────────┼──────────────┐
               ▼              ▼              ▼
          DiskLocation   DiskLocation   DiskLocation
          healthy        UNHEALTHY      healthy
          /data1         /data2         /data3
+              │              │
+         vol 1 writable  vol 2 readonly (existing)
+              │              │
+              └─ FindFreeLocation skips unhealthy (new volumes)
 ```
 
 | Состояние | Поведение |
 |-----------|-----------|
-| **healthy** | Новые volumes, assign growth, записи |
-| **unhealthy** | Исключён из `FindFreeLocation`; существующие volumes остаются для read |
-| **isDiskSpaceLow** | Как раньше — readonly volumes + skip в FindFreeLocation |
+| **healthy** | Новые volumes, assign, записи |
+| **unhealthy** | Все **existing** volumes на dir → `IsReadOnly()`; master исключает их из `writables`; `FindFreeLocation` skip |
+| **isDiskSpaceLow** | Как раньше — через `IsHealthyForWrites()` → readonly + skip |
+
+### Цепочка volume node → master
+
+1. `DiskLocation.markUnhealthy` / recovery → volumes на dir становятся readonly (`Volume.IsReadOnly()` ← `!location.IsHealthyForWrites()`).
+2. `Store.CollectHeartbeat()` → `VolumeInformationMessage.ReadOnly=true` для affected volumes.
+3. Немедленный heartbeat при смене health (`DiskHealthChangeChan`).
+4. Master `SyncDataNodeRegistration` → `EnsureCorrectWritables` → volume ID убирается из `VolumeLayout.writables`.
+5. `PickForWrite` / `/dir/assign` больше не возвращает volume ID на сломанном dir.
 
 **Переход в unhealthy:**
 - I/O error при write/read/delete (`IsDiskError`, incl. permission denied)
-- `-dir` недоступен при старте (single- or multi-dir: warn + unhealthy, FATAL только если **все** `-dir` недоступны)
+- `-dir` недоступен при старте (FATAL только если **все** `-dir` недоступны)
 - Ошибка роста volume на диске (`addVolume` → `ReportDiskError`)
 
-**Recovery (каждую минуту):**
-- `util.TestFolderWritable(dir)` → если OK, лог `recovered and is healthy again`
+**Recovery (каждую минуту + при успешном `TestFolderWritable`):**
+- volumes на dir снова writable; master получает heartbeat и возвращает volume ID в `writables`
 
 ## Логи
 
 ```
-E ... disk location /data2 marked unhealthy (io): read-only file system; new writes disabled on this directory
-I ... disk location /data2 recovered and is healthy again; writes re-enabled
-E ... disk location /data1 not writable at startup: Not writable! 
+E ... disk location /data1 marked unhealthy (io): read-only file system; new writes disabled on this directory; existing volumes marked readonly: 3, 7
+I ... volume server 127.0.0.1:8080 disk health changed, sending heartbeat
+I ... disk location /data1 recovered and is healthy again; volumes restored to writable: 3, 7
 ```
 
-## Изменённые файлы
+Master (upstream):
 
-| Файл | Функции |
-|------|---------|
-| `weed/storage/disk_health.go` | **NEW** `IsDiskError` |
-| `weed/storage/disk_location_health.go` | **NEW** `IsHealthyForWrites`, `ReportDiskError`, `markUnhealthy`, `tryRecoverHealth` |
-| `weed/storage/disk_location.go` | health fields; `checkHealthAndDiskSpace`; I/O on load |
-| `weed/storage/store.go` | `NewStore` startup check; `FindFreeLocation` skip unhealthy; `addVolume` → `ReportDiskError` |
-| `weed/storage/volume_write.go` | `checkReadWriteError` → `ReportDiskError` |
-| `weed/command/volume.go` | single/multi-dir: FATAL only when **no** writable `-dir`; else start unhealthy |
+```
+I ... volume 3 are not all writable
+I ... volume 3 remove from writable
+```
+
+## /status (volume node)
+
+`GET /status` → `DiskHealth[]`:
+
+```json
+{
+  "Directory": "/data1",
+  "Healthy": false,
+  "HealthyForWrites": false,
+  "DiskSpaceLow": false,
+  "LastError": "input/output error",
+  "UnhealthySince": "2026-06-17T12:00:00Z",
+  "ReadOnlyVolumeIds": [3, 7]
+}
+```
+
+**Prometheus:** `seaweed_volumeServer_disk_healthy{dir}`.
+
+## Изменённые файлы (итерация 2)
+
+| Файл | Изменение |
+|------|-----------|
+| `weed/storage/volume.go` | `IsReadOnly()` учитывает `!location.IsHealthyForWrites()` |
+| `weed/storage/disk_location_health.go` | лог volume IDs; `ReadOnlyVolumeIds` в snapshot; notify master |
+| `weed/storage/disk_location.go` | `onDiskHealthChange` callback |
+| `weed/storage/store.go` | `DiskHealthChangeChan`; `/status` ReadOnlyVolumeIds |
+| `weed/server/volume_grpc_client_to_master.go` | немедленный heartbeat при смене disk health |
 
 ## Тесты
 
 ```bash
 cd seaweedfs/weed
-go test ./storage/... -run 'TestIsDiskError|TestDiskLocationHealth|TestFindFreeLocation|TestStartupUnhealthy|TestAddVolumeReportsDiskError' -v
+
+# volume node: existing volumes readonly + heartbeat
+go test ./storage -run 'TestIsDiskError|TestDiskLocationHealth|TestFindFreeLocation|TestStartupUnhealthy|TestAddVolumeReportsDiskError|TestUnhealthyDirMarksExistingVolumesReadOnly|TestHeartbeatReportsUnhealthyDirVolumesReadOnly' -v
+
+# master: assign не возвращает volume ID на unhealthy dir
+go test ./topology -run TestMasterAssignSkipsVolumesOnUnhealthyDiskDir -v
 ```
 
 ## Build (stand)
 
 ```bash
 cd /home/cerf/Desktop/work2
-make up   # docker/seaweedfs.Dockerfile builds from ./seaweedfs
+make up
+make chaos-multi-dir   # /data1 fault → PUT на /data2
 ```
-
-## Интеграционный сценарий (локальный стенд)
-
-**Multi-dir (recommended for patch demo):**
-
-```bash
-make chaos-multi-dir
-# compose: docker-compose.yml + chaos + multi-dir
-# volume1: -dir=/data1,/data2 -max=3,3
-```
-
-**Single-dir chaos** (`make chaos-volume1`) exercises disk full/ro but does not prove per-dir failover.
-
-1. Два `-dir` на volume node (already in `docker-compose.multi-dir.yml`):
-
-   ```bash
-   weed volume -dir=/data1,/data2 -max=3,3 -mserver=master:9333
-   ```
-
-2. **Write error / disk full** — заполнить только `/data1`:
-
-   ```bash
-   ./scripts/chaos/disk_fail_data1.sh fill volume1
-   ./scripts/put_to_volume1.sh /tmp/test.bin chaos-write
-   ```
-
-3. **Read-only** — `./scripts/chaos/disk_fail_data1.sh readonly volume1`
-
-4. **Recovery** — `./scripts/chaos/reset_multi_dir_data1.sh volume1` → grep `recovered and is healthy again`
 
 Customer private fork: [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md).  
 Production (bare metal): [PRODUCTION-DEPLOY.md](PRODUCTION-DEPLOY.md).
-
-**Prometheus:** `-metricsPort=9324` in compose; metric `seaweed_volumeServer_disk_healthy{dir}`.
 
 ## Ограничения
 
 - Read с unhealthy диска возвращает ошибку клиенту (не скрывается)
 - `lastIoError` на volume по-прежнему может удалить volume на heartbeat (upstream behaviour)
-- Prometheus `/status` disk health export — not implemented (optional §4.4)
+- Master узнаёт о readonly через heartbeat; задержка ≤ `pulseSeconds`, при смене health — сразу (extra heartbeat)

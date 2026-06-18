@@ -44,32 +44,3 @@ func TestMasterCircuitBreakerIntegration(t *testing.T) {
 		t.Fatalf("expected circuit open, got %v", err)
 	}
 }
-
-func TestAssignWithRetryLive(t *testing.T) {
-	master := env("MASTER_URL", "http://localhost:9333")
-	if !reachable(master + "/cluster/status") {
-		t.Skip("stand not running")
-	}
-	ensureStackHealthy(t)
-
-	client := fragment.NewSeaweedClient(fragment.SeaweedConfig{
-		MasterURL:   master,
-		SideweedURL: env("SIDEWEED_URL", "http://localhost:8880"),
-		Replication: "000",
-		Retry: fragment.RetryConfig{
-			AssignMaxAttempts: 5,
-			BaseDelay:         200 * time.Millisecond,
-		},
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	assign, err := client.AssignWithRetry(ctx)
-	if err != nil {
-		t.Fatalf("assign with retry: %v", err)
-	}
-	if assign.URL != "volume1:8080" && assign.URL != "volume2:8080" {
-		t.Fatalf("unexpected assign url: %s", assign.URL)
-	}
-}

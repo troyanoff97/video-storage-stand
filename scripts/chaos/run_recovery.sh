@@ -26,9 +26,9 @@ try_put_v1() {
   local expect_fail="${2:-0}"
   set +e
   local out code
-  out=$(./scripts/put_to_volume1.sh "$TEST_FILE" "${CAMERA}-${label}" 2>&1)
+  out=$(./scripts/put_fragment.sh "$TEST_FILE" "${CAMERA}-${label}" 2>&1)
   code=$?
-  log "PUT-v1 [${label}]: exit=${code} (expect_fail=${expect_fail})"
+  log "PUT-S3 [${label}]: exit=${code} (expect_fail=${expect_fail})"
   log "$out"
   if [ "$expect_fail" = "1" ] && [ "$code" -eq 0 ]; then
     fail "PUT succeeded during fault ${label}"
@@ -64,13 +64,12 @@ try_assign_v1() {
   local expect_http="${2:-200}"
   set +e
   local body http
-  body=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
-    "http://localhost:9333/dir/assign?count=1&replication=000&dataCenter=dc1" 2>&1)
+  body=$(REPLICATION=000 DATA_CENTER=dc1 ./scripts/debug/master_assign.sh 2>&1)
   http=$(echo "$body" | awk -F: '/HTTP_CODE:/ {print $2}')
-  log "ASSIGN-v1 [${label}]: http=${http:-?} (expect ${expect_http})"
+  log "ASSIGN [DEBUG] [${label}]: http=${http:-?} (expect ${expect_http})"
   log "$body"
   if [ "$http" != "$expect_http" ]; then
-    fail "assign-v1 http ${http} != ${expect_http} for ${label}"
+    fail "assign http ${http} != ${expect_http} for ${label}"
   fi
   set -e
 }
@@ -88,7 +87,7 @@ sleep 3
 dd if=/dev/urandom of="$TEST_FILE" bs=64K count=1 status=none
 
 log "=== baseline (volume1 only) ==="
-baseline_out=$(./scripts/put_to_volume1.sh "$TEST_FILE" "${CAMERA}-baseline" 2>&1) || true
+baseline_out=$(./scripts/put_fragment.sh "$TEST_FILE" "${CAMERA}-baseline" 2>&1) || true
 log "$baseline_out"
 BASELINE_FRAGMENT=$(echo "$baseline_out" | awk '/fragment_id:/ {print $2}')
 BASELINE_CAMERA=$(echo "$baseline_out" | awk '/camera_id:/ {print $2}')

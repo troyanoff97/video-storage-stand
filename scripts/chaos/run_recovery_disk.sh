@@ -26,7 +26,7 @@ try_put_v1() {
   local expect_fail="${2:-0}"
   set +e
   local out code
-  out=$(./scripts/put_to_volume1.sh "$TEST_FILE" "${CAMERA}-${label}" 2>&1)
+  out=$(./scripts/put_fragment.sh "$TEST_FILE" "${CAMERA}-${label}" 2>&1)
   code=$?
   log "PUT-v1 [${label}]: exit=${code} (expect_fail=${expect_fail})"
   log "$out"
@@ -71,7 +71,7 @@ sleep 3
 dd if=/dev/urandom of="$TEST_FILE" bs=64K count=1 status=none
 
 log "=== baseline ==="
-baseline_out=$(./scripts/put_to_volume1.sh "$TEST_FILE" "${CAMERA}-baseline" 2>&1) || true
+baseline_out=$(./scripts/put_fragment.sh "$TEST_FILE" "${CAMERA}-baseline" 2>&1) || true
 log "$baseline_out"
 BASELINE_FRAGMENT=$(echo "$baseline_out" | awk '/fragment_id:/ {print $2}')
 BASELINE_CAMERA=$(echo "$baseline_out" | awk '/camera_id:/ {print $2}')

@@ -1,115 +1,62 @@
-# Chaos test expectations vs observed behavior on the local stand.
-# Update after `make chaos-matrix` or `make chaos-volume1` runs.
+# Chaos expectations (production S3 path)
 
-## Application expectations (recommended)
+Update after `make chaos-matrix` or `make chaos-multi-dir`.
 
-| Event | App should |
-|-------|------------|
-| assign HTTP 406 | Retry with backoff; alert if persistent |
-| assign connection refused (master down) | Circuit breaker; queue writes |
-| PUT HTTP 5xx | Do not write Cassandra metadata; retry assign+put |
-| GET via sideweed 502 | Retry on another read attempt (sideweed failover) |
-| Cassandra insert fail after PUT | Compensating delete or mark orphan blob |
+All acceptance PUT/GET uses:
+- **PUT:** `scripts/put_fragment.sh` → sideweed:8880 → S3 Gateway:8333
+- **GET:** `scripts/get_fragment.sh` → HAProxy:8882 → sideweed-read → S3:8333
 
-Go client (`pkg/fragment`): `AssignWithRetry` (406/5xx), `PutDirectWithRetry`, `GetViaSideweedWithRetry`, master circuit breaker (3 failures → open 10s). Unit tests: `make test-unit`.
+Write sideweed and read sideweed-read are **separate entrypoints**. Direct volume PUT is debug-only ([DEBUG.md](DEBUG.md)).
 
-## Topology notes (2026-06-16)
+## Result labels (`make chaos-matrix`)
 
-- **replication=001** requires both volume nodes in the **same dataCenter and rack** (`dc1` / `rack1`). With volume1 in `dc1` and volume2 in `dc2`, assign 001 fails on a fresh cluster.
-- **Pin writes to volume1:** `replication=000` + stop volume2 (`make chaos-volume1` does this) or retry in `put_to_volume1.sh`.
-- **disk read-only on volume1:** `docker-compose.chaos.yml` mounts **tmpfs** on volume1 `/data` (not a named volume) so `mount -o remount,ro` works; volume1 runs **privileged** for remount.
+| Label | Meaning |
+|-------|---------|
+| **PASS** | Observed behavior matches production expectations |
+| **WARN** | Fault simulation did not apply (tmpfs/remount limitation on stand) |
+| **SKIP** | Check skipped because fault could not be reproduced |
+| **FAIL** | Real production-path regression — unexpected success or failure |
 
-## Observed behavior (stand)
+Matrix exits non-zero only on **FAIL**.
 
-### volume1 stopped
+## Sideweed (S3 upstream)
 
-- assign: **HTTP 406** — `No writable volumes and no free volumes left`
-- PUT: not reached
-- GET via sideweed: **HTTP 200** (replica on volume2)
-- sideweed log: `"Status":"down"` for `http://volume1:8080`, DNS `server misbehaving`
+- Health: `GET /healthz` on S3 Gateway
+- PUT proxied to `http://s3:8333` — trace log `"method":"PUT"`
+- S3 down → sideweed 502, backend marked DOWN
+- No per-request retry
 
-### mount unavailable (volume1)
+## Matrix scenarios (`make chaos-matrix`)
 
-- **Single `-dir` + tmpfs remount ro:** volume stays up; assign/PUT fail when no other writable node.
-- Use **`docker-compose.chaos.yml`** (tmpfs + privileged).
+Stand: `replication=000`, two volume nodes.
 
-### recovery disk (`make chaos-recovery-disk`)
+| # | Scenario | PUT (S3 via write sideweed) | GET (HAProxy → read path) |
+|---|----------|----------------------------|---------------------------|
+| 0 | baseline | PASS | PASS |
+| 1 | volume1 down, volume2 up | **PASS** (failover to volume2) | PASS (existing object) |
+| 2 | mount unavailable v1 (v2 stopped) | FAIL if fault applied; else SKIP | — |
+| 3 | disk full v1 (v2 stopped) | FAIL if fault applied; else SKIP | — |
+| 4 | disk ro v1 (v2 stopped) | FAIL if fault applied; else SKIP | PASS baseline after v2 restored |
+| 5 | master down | **FAIL** (no new assign/write) | optional (existing object may PASS) |
+| 6 | all volumes down | FAIL | FAIL |
+| 7 | write sideweed down | FAIL | **PASS** (read via sideweed-read) |
 
-- Loop-backed ext4 at `/vol` (`/meta/disk.img`, `mkfs -m 0`) — data survives fault.
-- `disk_full_named.sh` fills `/vol` → PUT fail, GET baseline **OK**.
-- `reset_volumes_soft_named.sh` removes fill → PUT + GET **OK**.
-- **Not** tmpfs remount ro (tmpfs ro wipes blobs; bind-mount ro unreliable in container).
+### Why these expectations
 
-### all volumes down
+- **volume1 down:** With `replication=000` and volume2 healthy, S3 can allocate on volume2 — PUT success is correct HA behavior, not a failure.
+- **master down:** New writes need master assign → PUT must fail. GET of an already stored object may still work via filer/S3/volumes without master.
+- **sideweed down:** Write entrypoint is down → PUT fails. Read uses HAProxy → sideweed-read → S3 → unaffected.
+- **disk faults:** When tmpfs remount/fill cannot be applied, matrix logs **WARN** + **SKIP** instead of a false PASS/FAIL.
 
-- assign: **HTTP 000** (connection refused / no backend)
-- PUT: **fail**
-- GET via sideweed: **fail**
+## Multi-dir (`make chaos-multi-dir`)
 
-### sideweed down
+- baseline PUT-S3 OK
+- /data1 fault → PUT-S3 still OK (writes via /data2)
+- Logs: `marked unhealthy.*data1`, `In dir /data2 adds volume`
+- sideweed trace: PUT → `s3:8333`
 
-- PUT (direct volume): **OK** (bypasses sideweed by design)
-- GET via sideweed: **fail** (curl exit 7 / connection refused)
+## Debug assign checks
 
-### recovery (`make chaos-recovery`)
+Master `/dir/assign` tested only via `scripts/debug/master_assign.sh` in recovery/matrix diagnostics.
 
-- fault: volume1 stopped (volume2 stopped for pin) → assign **406**, PUT **fail**
-- after `compose start volume1` + wait: assign **200**, PUT **OK** (tmpfs: baseline GET not asserted — data lost on restart)
-
-### multi-dir (`make chaos-multi-dir`)
-
-- volume1: `-dir=/data1,/data2` (see `docker-compose.multi-dir.yml`)
-- fill or remount ro **/data1 only** → logs `marked unhealthy` for /data1
-- PUT pinned to volume1 still **OK** (growth on /data2)
-- after reset: `recovered and is healthy again` within ~60s
-
-### disk full on volume1 (chaos: tmpfs 64M, `-volumeSizeLimitMB=8`, `-volumePreallocate=false`, volume1 `-max=1`)
-
-- `disk_full.sh` fills tmpfs and verifies `touch /data` fails.
-- **Expected:** assign **406** or PUT fail when pinned to volume1 (`replication=000`).
-
-### mount unavailable / read-only on volume1 (chaos tmpfs)
-
-- `mount_unavailable.sh` and `disk_readonly.sh` use **`mount -o remount,ro tmpfs /data`** (not `chmod 000`).
-- Write probe must fail before the script exits.
-- **Expected:** assign **406** / PUT fail when volume2 stopped and replication `000`.
-
-- `disk_readonly.sh`: `mount -t tmpfs -o remount,ro tmpfs /data` inside privileged volume1.
-- assign: **HTTP 406** — `No writable volumes`
-- PUT script: **exit 22** (assign failure)
-- volume log: `open /data/NN.dat: read-only file system`
-- GET of blobs written before remount: **HTTP 200** via sideweed (not re-tested in this run; expected)
-
-### master stopped
-
-- assign: **HTTP 000**, curl exit 7
-- GET via sideweed: **HTTP 200** for known fid
-- volume log: `heartbeat to master:9333 error: rpc error: code = Unavailable`
-
-## Volume1 chaos run (`make chaos-volume1`, 2026-06-16)
-
-| Step | Assign | PUT | Notes |
-|------|--------|-----|-------|
-| baseline (volume2 stopped) | 200 → volume1 | 201 | fid on volume1:8080 |
-| disk full | 200 → volume1 | 201* | *may succeed on preallocated volume; see above |
-| disk read-only | **406** | **fail (exit 22)** | logs: `read-only file system` |
-
-Results file: `chaos-volume1-results.txt` (gitignored).
-
-### Chaos matrix gates (`make chaos-matrix`)
-
-Exit code 0 only if all checks pass. Scenarios 6–7 cover all volumes down and sideweed down. See [STAND-TESTING.md](STAND-TESTING.md).
-
-### Pin assign to volume1
-
-```bash
-# stop volume2 so only volume1 accepts replication=000 writes:
-docker compose -f docker-compose.yml -f docker-compose.chaos.yml stop volume2
-./scripts/put_to_volume1.sh file.bin camera-1
-make chaos-volume1   # stops volume2 automatically
-```
-
-```bash
-REPLICATION=000 DATA_CENTER=dc1 ./scripts/put_fragment.sh file.bin camera-1
-REPLICATION=000 ./bin/fragment put file.bin camera-1 --data-center dc1
-```
+See [STAND-TESTING.md](STAND-TESTING.md).

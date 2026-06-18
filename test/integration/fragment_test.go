@@ -29,6 +29,14 @@ func TestFragmentUploadDownload(t *testing.T) {
 			SideweedURL: env("SIDEWEED_URL", "http://localhost:8880"),
 			Replication: env("REPLICATION", "001"),
 		},
+		S3: fragment.S3Config{
+			Bucket:           env("S3_BUCKET", "video-fragments"),
+			AccessKey:        env("S3_ACCESS_KEY", "stand_access_key"),
+			SecretKey:        env("S3_SECRET_KEY", "stand_secret_key"),
+			Region:           env("S3_REGION", "us-east-1"),
+			SideweedWriteURL: env("SIDEWEED_URL", "http://localhost:8880"),
+			ReadURL:          env("READ_URL", "http://localhost:8882"),
+		},
 		Cassandra: fragment.CassandraConfig{
 			Hosts:    []string{env("CASSANDRA_HOSTS", "127.0.0.1")},
 			Keyspace: "video_archive",
@@ -63,48 +71,9 @@ func TestFragmentUploadDownload(t *testing.T) {
 	if meta.SeaweedFID != frag.SeaweedFID {
 		t.Fatalf("fid mismatch")
 	}
-}
-
-func TestAssignToVolume1DataCenter(t *testing.T) {
-	master := env("MASTER_URL", "http://localhost:9333")
-	if !reachable(master + "/cluster/status") {
-		t.Skip("stand not running")
+	if frag.SeaweedFID == "" || frag.SeaweedFID[:5] != "s3://" {
+		t.Fatalf("expected s3:// object uri from production path, got %q", frag.SeaweedFID)
 	}
-
-	stopVolume2(t)
-	t.Cleanup(func() {
-		startVolume2()
-		ensureStackHealthy(t)
-	})
-
-	compose(t, "restart", "volume1")
-	time.Sleep(12 * time.Second)
-
-	client := fragment.NewSeaweedClient(fragment.SeaweedConfig{
-		MasterURL:   master,
-		SideweedURL: env("SIDEWEED_URL", "http://localhost:8880"),
-		Replication: "000",
-		DataCenter:  "dc1",
-	})
-
-	deadline := time.Now().Add(90 * time.Second)
-	var lastCode int
-	var lastErr error
-	for attempt := 0; time.Now().Before(deadline); attempt++ {
-		if attempt == 8 {
-			compose(t, "restart", "volume1")
-			time.Sleep(10 * time.Second)
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		assign, code, err := client.Assign(ctx)
-		cancel()
-		lastCode, lastErr = code, err
-		if err == nil && code == http.StatusOK && assign.URL == "volume1:8080" {
-			return
-		}
-		time.Sleep(2 * time.Second)
-	}
-	t.Fatalf("assign to volume1 failed after retries: code=%d err=%v", lastCode, lastErr)
 }
 
 func env(key, def string) string {
@@ -148,8 +117,8 @@ func startVolume2() {
 
 func ensureStackHealthy(t *testing.T) {
 	t.Helper()
-	compose(t, "up", "-d", "master", "volume1", "volume2")
-	time.Sleep(10 * time.Second)
+	compose(t, "up", "-d", "master", "volume1", "volume2", "filer", "s3", "sideweed", "sideweed-read", "haproxy")
+	time.Sleep(15 * time.Second)
 }
 
 func reachable(url string) bool {
