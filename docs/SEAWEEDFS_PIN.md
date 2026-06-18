@@ -70,4 +70,4 @@ make check-seaweedfs
 
 `make test-go` и `make chaos-matrix` пока **не** вызывают `check-seaweedfs` — сначала выполните `make check-seaweedfs` (или `make up`, который проверяет до сборки).
 
-См. также [seaweedfs-disk-health.md](seaweedfs-disk-health.md), [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md).
+См. также [seaweedfs-disk-health.md](seaweedfs-disk-health.md), [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md), [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md).

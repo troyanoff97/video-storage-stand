@@ -35,9 +35,18 @@ git remote add customer git@github.com:<customer>/seaweedfs.git
 git checkout feat/volume-disk-health-isolation
 git log --oneline -5   # verify commits
 
+# Пушить ветку, НЕ raw commit SHA:
 git push -u customer feat/volume-disk-health-isolation
 # опционально: git push customer feat/volume-disk-health-isolation:main
+
+# Проверка, что pin commit доступен на remote:
+git ls-remote customer feat/volume-disk-health-isolation
+git fetch customer feat/volume-disk-health-isolation
+git branch -r --contains 1528e7d6d610330ec0bc8256090005ffbe09d64c
+# ожидается: customer/feat/volume-disk-health-isolation
 ```
+
+**Не использовать:** `git push customer 1528e7d6d610330ec0bc8256090005ffbe09d64c` — push по SHA создаёт detached ref и не подходит для `make init-seaweedfs`.
 
 ## 3. Сборка и deploy на volume node
 
@@ -92,4 +101,4 @@ make chaos-multi-dir
 
 Stand repo ссылается на `./seaweedfs` только на **этапе сборки**. CI/production должны клонировать **customer fork**, а не полагаться на локальный путь разработчика.
 
-См. также: [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md), [seaweedfs-disk-health.md](seaweedfs-disk-health.md), [STAND-TESTING.md](STAND-TESTING.md).
+См. также: [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md), [seaweedfs-disk-health.md](seaweedfs-disk-health.md), [STAND-TESTING.md](STAND-TESTING.md), [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md).
