@@ -13,32 +13,26 @@ CAMERA_ID="$1"
 FRAGMENT_ID="$2"
 OUTPUT_FILE="${3:-/tmp/fragment_out.bin}"
 
-SIDEWEED_URL="${SIDEWEED_URL:-http://localhost:8880}"
+export READ_URL="${READ_URL:-http://localhost:8882}"
+export SIDEWEED_URL="${SIDEWEED_URL:-http://localhost:8880}"
+export S3_BUCKET="${S3_BUCKET:-video-fragments}"
+export S3_ACCESS_KEY="${S3_ACCESS_KEY:-stand_access_key}"
+export S3_REGION="${S3_REGION:-us-east-1}"
 
-echo "==> SELECT metadata from Cassandra"
-ROW=$(docker compose exec -T cassandra cqlsh -e \
-  "SELECT seaweed_fid, size, created_at FROM video_archive.fragments
-   WHERE camera_id='${CAMERA_ID}' AND fragment_id=${FRAGMENT_ID};" | tr -d '\r')
-
-echo "$ROW"
-
-FID=$(echo "$ROW" | awk -F'|' '/^[[:space:]]*[0-9]+,/ {gsub(/^[[:space:]]+|[[:space:]]+$/, "", $1); print $1; exit}')
-EXPECTED_SIZE=$(echo "$ROW" | awk -F'|' '/^[[:space:]]*[0-9]+,/ {gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2; exit}')
-
-if [[ -z "$FID" ]]; then
-  echo "ERROR: fragment not found in Cassandra" >&2
-  exit 1
+if [[ ! -x ./bin/fragment ]]; then
+  make build-cli
 fi
 
-echo "==> GET blob via sideweed (fid: ${FID})"
-curl -sf "${SIDEWEED_URL}/${FID}" -o "$OUTPUT_FILE"
+echo "==> GET via production read path (HAProxy ${READ_URL} → sideweed-read → S3)"
+./bin/fragment get "$CAMERA_ID" "$FRAGMENT_ID" >/tmp/get_fragment_meta.txt
 
-ACTUAL_SIZE=$(stat -c%s "$OUTPUT_FILE")
-echo "Downloaded ${ACTUAL_SIZE} bytes to ${OUTPUT_FILE}"
+OBJECT_URI=$(awk '/seaweed_fid:/ {print $2}' /tmp/get_fragment_meta.txt)
+OUT=$(awk '/output:/ {print $2}' /tmp/get_fragment_meta.txt)
 
-if [[ -n "$EXPECTED_SIZE" && "$ACTUAL_SIZE" != "$EXPECTED_SIZE" ]]; then
-  echo "WARNING: size mismatch (expected ${EXPECTED_SIZE}, got ${ACTUAL_SIZE})" >&2
-  exit 1
+if [[ -n "$OUT" && -f "$OUT" ]]; then
+  cp "$OUT" "$OUTPUT_FILE"
 fi
 
-echo "SUCCESS"
+cat /tmp/get_fragment_meta.txt
+echo "  saved_to:     ${OUTPUT_FILE}"
+echo "  object_uri:   ${OBJECT_URI:-unknown}"

@@ -4,7 +4,7 @@ services:
   volume1:
     command: >
       volume -ip=volume1 -mserver=master:9333 -ip.bind=0.0.0.0
-      -port=8080 -dir=/data1,/data2 -max=3,3 -dataCenter=dc1 -rack=rack1
+      -port=8080 -dir=/data1,/data2 -max=10,10 -dataCenter=dc1 -rack=rack1
     volumes: !reset []
     tmpfs:
       - /data1:size=256m,mode=1777

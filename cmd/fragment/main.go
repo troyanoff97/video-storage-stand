@@ -31,21 +31,26 @@ func main() {
 
 func usage() {
 	fmt.Fprintf(os.Stderr, `Usage:
-  fragment put <file> <camera_id> [--data-center dc1]
+  fragment put <file> <camera_id> [--data-center dc1] [--direct-volume]
   fragment get <camera_id> <fragment_uuid>
 
-Environment:
-  MASTER_URL      (default http://localhost:9333)
-  SIDEWEED_URL    (default http://localhost:8880)
-  CASSANDRA_HOSTS (default 127.0.0.1)
-  REPLICATION     (default 001)
-  DATA_CENTER     (optional, e.g. dc1 for volume1)
+Environment (production S3 path):
+  SIDEWEED_URL      write entry (default http://localhost:8880)
+  READ_URL          read entry via HAProxy (default http://localhost:8882)
+  S3_BUCKET         (default video-fragments)
+  S3_ACCESS_KEY     (default stand_access_key)
+  S3_SECRET_KEY     (default stand_secret_key)
+  CASSANDRA_HOSTS   (default 127.0.0.1)
+
+Debug direct volume PUT:
+  USE_DIRECT_VOLUME_PUT=1  or  fragment put --direct-volume
+  MASTER_URL, REPLICATION, DATA_CENTER
 `)
 }
 
-func newUploader(dataCenter string) (*fragment.Uploader, error) {
-	if dataCenter == "" {
-		dataCenter = os.Getenv("DATA_CENTER")
+func newUploader(dataCenter string, directVolume bool) (*fragment.Uploader, error) {
+	if !directVolume && os.Getenv("USE_DIRECT_VOLUME_PUT") == "1" {
+		directVolume = true
 	}
 	cassHost := os.Getenv("CASSANDRA_HOSTS")
 	if cassHost == "" {
@@ -53,13 +58,23 @@ func newUploader(dataCenter string) (*fragment.Uploader, error) {
 	}
 	master := envOr("MASTER_URL", "http://localhost:9333")
 	sideweed := envOr("SIDEWEED_URL", "http://localhost:8880")
+	readURL := envOr("READ_URL", "http://localhost:8882")
 
 	return fragment.NewUploader(fragment.Config{
+		UseDirectVolumePut: directVolume,
 		Seaweed: fragment.SeaweedConfig{
 			MasterURL:   master,
 			SideweedURL: sideweed,
 			Replication: envOr("REPLICATION", "001"),
 			DataCenter:  dataCenter,
+		},
+		S3: fragment.S3Config{
+			Bucket:           envOr("S3_BUCKET", "video-fragments"),
+			AccessKey:        envOr("S3_ACCESS_KEY", "stand_access_key"),
+			SecretKey:        envOr("S3_SECRET_KEY", "stand_secret_key"),
+			Region:           envOr("S3_REGION", "us-east-1"),
+			SideweedWriteURL: sideweed,
+			ReadURL:          readURL,
 		},
 		Cassandra: fragment.CassandraConfig{
 			Hosts:    []string{cassHost},
@@ -70,7 +85,8 @@ func newUploader(dataCenter string) (*fragment.Uploader, error) {
 
 func cmdPut(args []string) int {
 	fs := flag.NewFlagSet("put", flag.ExitOnError)
-	dataCenter := fs.String("data-center", "", "pin assign to data center (dc1=volume1, dc2=volume2)")
+	dataCenter := fs.String("data-center", "", "pin assign to data center (debug direct volume only)")
+	directVolume := fs.Bool("direct-volume", false, "debug: master assign + direct volume POST")
 	_ = fs.Parse(args)
 
 	if fs.NArg() != 2 {
@@ -84,7 +100,12 @@ func cmdPut(args []string) int {
 		return 1
 	}
 
-	u, err := newUploader(*dataCenter)
+	dc := *dataCenter
+	if dc == "" {
+		dc = os.Getenv("DATA_CENTER")
+	}
+
+	u, err := newUploader(dc, *directVolume)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "init: %v\n", err)
 		return 1
@@ -120,7 +141,7 @@ func cmdGet(args []string) int {
 		return 2
 	}
 
-	u, err := newUploader("")
+	u, err := newUploader("", false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "init: %v\n", err)
 		return 1

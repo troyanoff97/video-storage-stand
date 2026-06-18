@@ -8,7 +8,7 @@ services:
     image: work2-seaweedfs:local
     command: >
       master -ip=master -ip.bind=0.0.0.0
-      -defaultReplication=001 -volumeSizeLimitMB=256
+      -defaultReplication=000 -volumeSizeLimitMB=256
     ports:
       - "9333:9333"
     healthcheck:
@@ -22,7 +22,7 @@ services:
     <<: *seaweedfs
     command: >
       volume -ip=volume1 -mserver=master:9333 -ip.bind=0.0.0.0
-      -port=8080 -dir=/data -max=3 -dataCenter=dc1 -rack=rack1
+      -port=8080 -dir=/data -max=20 -dataCenter=dc1 -rack=rack1
       -metricsPort=9324 -metricsIp=0.0.0.0
     ports:
       - "8080:8080"
@@ -43,7 +43,7 @@ services:
     <<: *seaweedfs
     command: >
       volume -ip=volume2 -mserver=master:9333 -ip.bind=0.0.0.0
-      -port=8080 -dir=/data -max=3 -dataCenter=dc1 -rack=rack1
+      -port=8080 -dir=/data -max=20 -dataCenter=dc1 -rack=rack1
       -metricsPort=9324 -metricsIp=0.0.0.0
     ports:
       - "8081:8080"
@@ -60,19 +60,58 @@ services:
       retries: 10
       start_period: 15s
 
+  filer:
+    <<: *seaweedfs
+    command: >
+      filer -ip=filer -master=master:9333 -ip.bind=0.0.0.0
+      -port=8888 -defaultReplicaPlacement=000
+    ports:
+      - "8888:8888"
+    depends_on:
+      master:
+        condition: service_healthy
+      volume1:
+        condition: service_healthy
+      volume2:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8888/"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 20s
+
+  s3:
+    <<: *seaweedfs
+    command: >
+      s3 -filer=filer:8888 -ip.bind=0.0.0.0 -port=8333
+      -config=/etc/seaweedfs/s3.json
+    ports:
+      - "8333:8333"
+    volumes:
+      - ./docker/s3-config-stand.json:/etc/seaweedfs/s3.json:ro
+    depends_on:
+      filer:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8333/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 15s
+
+  # Production write path: client → sideweed → S3 Gateway
   sideweed:
     build:
       context: ./sideweed
       dockerfile: ../docker/sideweed.Dockerfile
     command: >
       -l --json --health-path=/healthz --health-duration=3s
-      --address=:8880 http://volume1:8080 http://volume2:8080
+      --address=:8880 http://s3:8333
     ports:
       - "8880:8880"
     depends_on:
-      volume1:
-        condition: service_healthy
-      volume2:
+      s3:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8880/v1/health"]
@@ -80,6 +119,60 @@ services:
       timeout: 3s
       retries: 10
       start_period: 10s
+
+  # Production read path backend (behind HAProxy): HAProxy → sideweed-read → S3
+  sideweed-read:
+    build:
+      context: ./sideweed
+      dockerfile: ../docker/sideweed.Dockerfile
+    command: >
+      -l --json --health-path=/healthz --health-duration=3s
+      --address=:8883 http://s3:8333
+    expose:
+      - "8883"
+    depends_on:
+      s3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8883/v1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  haproxy:
+    image: haproxy:2.8-alpine
+    ports:
+      - "8882:8882"
+    volumes:
+      - ./docker/haproxy-read.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      sideweed-read:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8882/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  # Debug-only: native volume GET LB (not production write path)
+  sideweed-volumes:
+    build:
+      context: ./sideweed
+      dockerfile: ../docker/sideweed.Dockerfile
+    profiles:
+      - debug
+    command: >
+      -l --json --health-path=/healthz --health-duration=3s
+      --address=:8884 http://volume1:8080 http://volume2:8080
+    ports:
+      - "8884:8884"
+    depends_on:
+      volume1:
+        condition: service_healthy
+      volume2:
+        condition: service_healthy
 
   cassandra:
     image: cassandra:4.1

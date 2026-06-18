@@ -7,7 +7,10 @@ cd "$ROOT_DIR"
 MASTER_URL="${MASTER_URL:-http://localhost:9333}"
 VOLUME1_URL="${VOLUME1_URL:-http://localhost:8080}"
 VOLUME2_URL="${VOLUME2_URL:-http://localhost:8081}"
+FILER_URL="${FILER_URL:-http://localhost:8888}"
+S3_URL="${S3_URL:-http://localhost:8333}"
 SIDEWEED_URL="${SIDEWEED_URL:-http://localhost:8880}"
+READ_URL="${READ_URL:-http://localhost:8882}"
 CASSANDRA_HOST="${CASSANDRA_HOST:-localhost:9042}"
 
 wait_for() {
@@ -31,7 +34,10 @@ wait_for() {
 wait_for "SeaweedFS master" "${MASTER_URL}/cluster/status"
 wait_for "SeaweedFS volume1" "${VOLUME1_URL}/healthz"
 wait_for "SeaweedFS volume2" "${VOLUME2_URL}/healthz"
-wait_for "sideweed" "${SIDEWEED_URL}/v1/health"
+wait_for "SeaweedFS filer" "${FILER_URL}/"
+wait_for "SeaweedFS S3 Gateway" "${S3_URL}/healthz"
+wait_for "sideweed (write)" "${SIDEWEED_URL}/v1/health"
+wait_for "HAProxy (read path)" "${READ_URL}/healthz"
 
 echo "Waiting for Cassandra at ${CASSANDRA_HOST}..."
 attempt=1

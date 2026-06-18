@@ -20,7 +20,9 @@ help:
 	@echo "  test-unit            go unit tests (resilience)"
 	@echo "  test-all             bash + go integration tests"
 	@echo "  build-cli            build cmd/fragment binary"
-	@echo "  put-v1               put fragment pinned to volume1 (dc1)"
+	@echo "  put-v1               DEBUG: direct volume PUT (scripts/debug/)"
+	@echo "  put-snapshot         PUT snapshot to bucket csb (production path)"
+	@echo "  verify-path          prove PUT goes sideweed → S3"
 	@echo "  chaos-matrix         run fault scenarios and save results"
 	@echo "  chaos-recovery       fault -> reset -> assert PUT/GET recovery"
 	@echo "  chaos-recovery-disk  disk ro -> soft reset -> GET baseline (no restart)"
@@ -58,7 +60,7 @@ test-file:
 	@dd if=/dev/urandom of=$(TEST_FILE) bs=1M count=1 status=none
 	@echo "Created $(TEST_FILE)"
 
-test: test-file health
+test: test-file build-cli health
 	@out=$$(./scripts/put_fragment.sh $(TEST_FILE) camera-test); echo "$$out"; \
 	fid=$$(echo "$$out" | awk '/fragment_id:/ {print $$2}'); \
 	./scripts/get_fragment.sh camera-test "$$fid"
@@ -72,7 +74,13 @@ put: test-file
 	./scripts/put_fragment.sh $(TEST_FILE) camera-manual
 
 put-v1: test-file
-	./scripts/put_to_volume1.sh $(TEST_FILE) camera-manual-v1
+	./scripts/debug/put_to_volume1.sh $(TEST_FILE) camera-manual-v1
+
+put-snapshot: test-file
+	./scripts/put_snapshot.sh $(TEST_FILE) snapshot-manual
+
+verify-path: test-file build-cli health
+	./scripts/verify_production_path.sh $(TEST_FILE)
 
 get:
 	@test -n "$(CAMERA)" && test -n "$(FRAGMENT)" || (echo "Usage: make get CAMERA=camera-1 FRAGMENT=<uuid>" && exit 1)
