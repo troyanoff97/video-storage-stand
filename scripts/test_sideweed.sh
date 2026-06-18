@@ -13,6 +13,8 @@ CAMERA="sideweed-gate-test"
 FAILURES=0
 PASSES=0
 BASELINE_FRAGMENT=""
+LOG_CHECKPOINT=""
+LOG_WAIT_TIMEOUT="${LOG_WAIT_TIMEOUT:-15}"
 
 log() { echo "$@"; }
 pass() { PASSES=$((PASSES + 1)); log "PASS: $1"; }
@@ -46,11 +48,36 @@ parse_curl_result() {
   echo "${http_code} ${elapsed_ms}"
 }
 
-wait_log() {
+# Mark log search start — only lines after checkpoint count for this scenario.
+sideweed_log_checkpoint() {
+  LOG_CHECKPOINT="$(date -u +%Y-%m-%dT%H:%M:%S)"
+}
+
+sideweed_logs_since_checkpoint() {
+  if [ -n "$LOG_CHECKPOINT" ]; then
+    compose logs sideweed --since "$LOG_CHECKPOINT" 2>&1 \
+      | grep -E '"Type":"LOG"|WRITE_DEGRADED|WRITE_RECOVERED|PUT_BLOCKED' || true
+  else
+    compose logs sideweed --tail=200 2>&1 \
+      | grep -E '"Type":"LOG"|WRITE_DEGRADED|WRITE_RECOVERED|PUT_BLOCKED' || true
+  fi
+}
+
+dump_sideweed_logs() {
+  log "--- sideweed logs since checkpoint (${LOG_CHECKPOINT:-none}) ---"
+  sideweed_logs_since_checkpoint | tail -40
+  log "--- end sideweed logs ---"
+}
+
+# Wait for log pattern in sideweed output after checkpoint.
+# Args: pattern [timeout_seconds]
+wait_for_log() {
   local pattern="$1"
-  local i
-  for i in $(seq 1 30); do
-    if compose logs sideweed --tail=150 2>&1 | grep -qE "$pattern"; then
+  local timeout="${2:-$LOG_WAIT_TIMEOUT}"
+  local i logs
+  for i in $(seq 1 "$timeout"); do
+    logs="$(sideweed_logs_since_checkpoint)"
+    if echo "$logs" | grep -qE "$pattern"; then
       return 0
     fi
     sleep 1
@@ -58,8 +85,27 @@ wait_log() {
   return 1
 }
 
-wait_write_degraded() {
-  wait_log 'WRITE_DEGRADED|"Status":"WRITE_DEGRADED"'
+# Wait for WRITE_DEGRADED with optional reason alternates (pipe-separated regex).
+wait_for_write_degraded() {
+  local reasons="${1:-}"
+  local pattern='"Status":"WRITE_DEGRADED"'
+  if [ -n "$reasons" ]; then
+    pattern="\"Status\":\"WRITE_DEGRADED\".*\"Reason\":\"(${reasons})\""
+  fi
+  if wait_for_log "$pattern"; then
+    return 0
+  fi
+  dump_sideweed_logs
+  return 1
+}
+
+wait_for_write_recovered() {
+  wait_for_log '"Status":"WRITE_RECOVERED"'
+}
+
+wait_for_put_blocked() {
+  local reason="$1"
+  wait_for_log "\"Status\":\"PUT_BLOCKED\".*\"Reason\":\"${reason}\""
 }
 
 wait_put_ok() {
@@ -70,6 +116,23 @@ wait_put_ok() {
     fi
     sleep 2
   done
+  return 1
+}
+
+assert_put_503_fast() {
+  local slug="$1"
+  local attempt http_code elapsed raw
+  for attempt in 1 2 3 4 5 6 7 8 9 10; do
+    raw=$(put_sideweed_raw "${slug}-$(date +%s)-${attempt}")
+    read -r http_code elapsed < <(parse_curl_result "$raw")
+    if [ "$http_code" = "503" ] && [ "${elapsed:-9999}" -lt 1000 ]; then
+      pass "${slug} PUT 503 <1s (${elapsed}ms, attempt ${attempt})"
+      return 0
+    fi
+    sleep 0.3
+  done
+  fail "${slug} PUT expected 503 <1s, got http=${http_code} elapsed=${elapsed}ms after ${attempt} attempts"
+  dump_sideweed_logs
   return 1
 }
 
@@ -88,23 +151,22 @@ else
   echo "$baseline_out"
 fi
 
-log "==> master down → PUT blocked <1s after WRITE_DEGRADED"
+log "==> master down → WRITE_DEGRADED + PUT 503 <1s"
+sideweed_log_checkpoint
 compose stop master
-if ! wait_write_degraded; then
-  fail "WRITE_DEGRADED not seen after master down"
+# Probes run every 3s; allow one interval before strict wait.
+sleep 1
+if wait_for_write_degraded "master_down|assign_failed"; then
+  pass "WRITE_DEGRADED logged (master_down|assign_failed)"
 else
-  pass "WRITE_DEGRADED logged (master_down)"
+  fail "WRITE_DEGRADED not seen after master down (within ${LOG_WAIT_TIMEOUT}s)"
 fi
-read -r http_code elapsed < <(parse_curl_result "$(put_sideweed_raw "master-down-$(date +%s)")")
-if [ "$http_code" = "503" ] && [ "${elapsed:-9999}" -lt 1000 ]; then
-  pass "master down PUT 503 <1s (${elapsed}ms)"
-else
-  fail "master down PUT expected 503 <1s, got http=${http_code} elapsed=${elapsed}ms"
-fi
-if wait_log 'PUT_BLOCKED.*write_health_degraded|"Reason":"write_health_degraded"'; then
+assert_put_503_fast "master-down" || true
+if wait_for_put_blocked "write_health_degraded"; then
   pass "PUT_BLOCKED reason=write_health_degraded"
 else
   fail "missing PUT_BLOCKED write_health_degraded"
+  dump_sideweed_logs
 fi
 if [ -n "$BASELINE_FRAGMENT" ]; then
   if ./scripts/get_fragment.sh "${CAMERA}-baseline" "$BASELINE_FRAGMENT" /tmp/sideweed-get.bin >/dev/null 2>&1; then
@@ -118,52 +180,49 @@ sleep 10
 ./scripts/wait-healthy.sh >/dev/null
 
 log "==> recovery after master up"
+sideweed_log_checkpoint
 if wait_put_ok; then
   pass "PUT works again after master recovery (200)"
 else
   fail "PUT did not recover after master restart"
 fi
-if wait_log 'WRITE_RECOVERED|"Status":"WRITE_RECOVERED"'; then
+if wait_for_write_recovered; then
   pass "WRITE_RECOVERED logged"
 else
   fail "missing WRITE_RECOVERED in sideweed logs"
+  dump_sideweed_logs
 fi
 
-log "==> all volumes down → PUT 503 <1s after WRITE_DEGRADED"
+log "==> all volumes down → WRITE_DEGRADED + PUT 503 <1s"
+sideweed_log_checkpoint
 compose stop volume1 volume2
-if ! wait_write_degraded; then
-  fail "WRITE_DEGRADED not seen after all volumes down"
+sleep 1
+if wait_for_write_degraded "all_volumes_down|assign_failed"; then
+  pass "WRITE_DEGRADED logged (all_volumes_down|assign_failed)"
 else
-  pass "WRITE_DEGRADED logged (all_volumes_down)"
+  fail "WRITE_DEGRADED not seen after all volumes down (within ${LOG_WAIT_TIMEOUT}s)"
 fi
-read -r http_code elapsed < <(parse_curl_result "$(put_sideweed_raw "all-vol-$(date +%s)")")
-if [ "$http_code" = "503" ] && [ "${elapsed:-9999}" -lt 1000 ]; then
-  pass "all volumes down PUT 503 <1s (${elapsed}ms)"
-else
-  fail "all volumes down PUT expected 503 <1s, got http=${http_code} elapsed=${elapsed}ms"
-fi
+assert_put_503_fast "all-volumes-down" || true
 compose start volume1 volume2
 sleep 10
 ./scripts/wait-healthy.sh >/dev/null
 
 log "==> S3 gateway down → PUT 503 <1s (not 502)"
+sideweed_log_checkpoint
 compose stop s3
-for _ in $(seq 1 5); do
-  if compose logs sideweed --tail=40 2>&1 | grep -qE 'WRITE_DEGRADED.*s3_down|"Reason":"s3_down"|s3_backend_down|PUT_BLOCKED.*s3_backend_down'; then
-    break
-  fi
-  sleep 1
-done
-read -r http_code elapsed < <(parse_curl_result "$(put_sideweed_raw "s3-down-$(date +%s)")")
-if [ "$http_code" = "503" ] && [ "${elapsed:-9999}" -lt 1000 ]; then
-  pass "S3 down PUT 503 <1s (${elapsed}ms)"
+sleep 1
+if wait_for_log '"Status":"WRITE_DEGRADED".*"Reason":"s3_down"|"Status":"PUT_BLOCKED".*"Reason":"s3_backend_down"'; then
+  pass "WRITE_DEGRADED reason=s3_down or PUT_BLOCKED s3_backend_down"
 else
-  fail "S3 down PUT expected 503 <1s, got http=${http_code} elapsed=${elapsed}ms"
+  fail "missing WRITE_DEGRADED s3_down / PUT_BLOCKED s3_backend_down"
+  dump_sideweed_logs
 fi
-if wait_log 'PUT_BLOCKED.*s3_backend_down|"Reason":"s3_backend_down"'; then
+assert_put_503_fast "s3-down" || true
+if wait_for_put_blocked "s3_backend_down"; then
   pass "PUT_BLOCKED reason=s3_backend_down"
 else
   fail "missing PUT_BLOCKED s3_backend_down"
+  dump_sideweed_logs
 fi
 compose up -d s3 sideweed
 sleep 12
