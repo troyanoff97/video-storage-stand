@@ -32,7 +32,7 @@ checkout_pin() {
 Fetch from customer fork: cd seaweedfs && git fetch origin ${REQUIRED_BRANCH}"
   fi
 
-  short_head="$(git -C "$dir" rev-parse --short HEAD)"
+  short_head="$(git -C "$dir" rev-parse --short=7 HEAD)"
   if [ "$short_head" != "$REQUIRED_SHORT_COMMIT" ]; then
     fail "after checkout HEAD is ${short_head}, required ${REQUIRED_SHORT_COMMIT}.
 See docs/SEAWEEDFS_PIN.md"

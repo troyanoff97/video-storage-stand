@@ -30,7 +30,7 @@ if ! git -C "$SEAWEEDFS_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; th
 Run: SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs"
 fi
 
-short_head="$(git -C "$SEAWEEDFS_DIR" rev-parse --short HEAD)"
+short_head="$(git -C "$SEAWEEDFS_DIR" rev-parse --short=7 HEAD)"
 full_head="$(git -C "$SEAWEEDFS_DIR" rev-parse HEAD)"
 
 if [ "$short_head" != "$REQUIRED_SHORT_COMMIT" ] && [ "$full_head" != "$REQUIRED_FULL_COMMIT" ]; then
