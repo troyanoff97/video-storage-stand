@@ -2,6 +2,8 @@
 
 Production clients **never** talk to volume nodes or `master /dir/assign` directly.
 
+SeaweedFS stand builds still require the pinned fork — see [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md) (`make check-seaweedfs`).
+
 ## Scripts
 
 | Script | What it does |

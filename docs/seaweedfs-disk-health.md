@@ -1,10 +1,11 @@
 # SeaweedFS weed-volume: per-disk health isolation
 
-Патчи в локальном clone `./seaweedfs` (ветка `feat/volume-disk-health-isolation`), база — upstream [seaweedfs/seaweedfs](https://github.com/seaweedfs/seaweedfs) tag 3.80.
+Патчи в локальном clone `./seaweedfs` (ветка `feat/volume-disk-health-isolation`, **pin `1528e7d`**), база — upstream [seaweedfs/seaweedfs](https://github.com/seaweedfs/seaweedfs) tag 3.80.
 
-**GitHub-fork для SeaweedFS:** отдельного репозитория нет. **sideweed fork:** [github.com/troyanoff97/sideweed](https://github.com/troyanoff97/sideweed).
+**Инициализация:** [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md) — `make init-seaweedfs`, `make check-seaweedfs`.  
+**GitHub-fork для SeaweedFS:** customer private repo via `SEAWEEDFS_REPO_URL`. **sideweed fork:** [github.com/troyanoff97/sideweed](https://github.com/troyanoff97/sideweed).
 
-Стенд: `docker/seaweedfs.Dockerfile` → `make up` (не `chrislusf/seaweedfs`).
+Стенд: `docker/seaweedfs.Dockerfile` → `make up` (не `chrislusf/seaweedfs`). `make up` вызывает `check-seaweedfs` до сборки.
 
 > Push не выполняется агентом.
 
@@ -108,6 +109,8 @@ go test ./topology -run TestMasterAssignSkipsVolumesOnUnhealthyDiskDir -v
 
 ```bash
 cd /home/cerf/Desktop/work2
+SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs   # fresh clone only
+make check-seaweedfs
 make up
 make chaos-multi-dir   # /data1 fault → PUT на /data2
 ```

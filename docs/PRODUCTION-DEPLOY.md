@@ -32,10 +32,14 @@ Stand: `scripts/put_fragment.sh` (fragments), `scripts/put_snapshot.sh` (csb).
 
 ## Volume node (disk-health patch)
 
-Branch: `feat/volume-disk-health-isolation` in customer SeaweedFS fork.
+Branch: `feat/volume-disk-health-isolation` in customer SeaweedFS fork.  
+**Pinned commit:** `1528e7d` — see [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md).
+
+Stand clone:
 
 ```bash
-weed volume -dir=/mnt/disk1,/mnt/disk2 -max=32,32 -mserver=... -metricsPort=9324
+SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs
+make check-seaweedfs
 ```
 
 On unhealthy dir:
@@ -44,6 +48,12 @@ On unhealthy dir:
 - New growth only on healthy dirs (`FindFreeLocation`)
 
 Monitor: `/status` → `DiskHealth`, `ReadOnlyVolumeIds`; metric `seaweed_volumeServer_disk_healthy{dir}`.
+
+Production volume command example:
+
+```bash
+weed volume -dir=/mnt/disk1,/mnt/disk2 -max=32,32 -mserver=... -metricsPort=9324
+```
 
 ## Sideweed configuration
 
@@ -67,6 +77,9 @@ HAProxy → sideweed-read → S3 Gateway pool
 On patched image / stand:
 
 ```bash
+git submodule update --init --recursive
+SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs
+make check-seaweedfs
 make up
 make test                    # PUT sideweed→S3, GET HAProxy→S3
 ./scripts/verify_production_path.sh
@@ -84,4 +97,4 @@ Debug volume tests: [DEBUG.md](DEBUG.md) only.
 - [ ] Disk-health patch deployed on volume nodes
 - [ ] Alerts on `disk_healthy == 0`
 
-See also [seaweedfs-disk-health.md](seaweedfs-disk-health.md), [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md).
+See also [seaweedfs-disk-health.md](seaweedfs-disk-health.md), [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md), [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md).

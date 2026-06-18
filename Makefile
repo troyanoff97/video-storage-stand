@@ -4,7 +4,7 @@ COMPOSE_PERSIST := docker compose -f docker-compose.yml -f docker-compose.persis
 TEST_FILE := /tmp/test-fragment.bin
 GO := go
 
-.PHONY: help init up down logs health test test-go test-integration test-all put get clean build-cli \
+.PHONY: help init init-seaweedfs check-seaweedfs up down logs health test test-go test-integration test-all put get clean build-cli \
 	chaos-volume-down chaos-volume-up chaos-master-down chaos-master-up \
 	chaos-mount-unavailable chaos-disk-full chaos-disk-readonly chaos-reset \
 	chaos-matrix chaos-recovery chaos-recovery-disk chaos-multi-dir put-v1 up-multi-dir up-persist \
@@ -13,6 +13,8 @@ GO := go
 help:
 	@echo "Targets:"
 	@echo "  init                 git submodule update --init"
+	@echo "  init-seaweedfs       clone customer fork (SEAWEEDFS_REPO_URL) + checkout pin"
+	@echo "  check-seaweedfs      verify ./seaweedfs at commit 1528e7d"
 	@echo "  up                   build and start stack"
 	@echo "  down                 stop stack"
 	@echo "  health               wait for all services"
@@ -35,15 +37,22 @@ help:
 init:
 	git submodule sync --recursive
 	git submodule update --init --recursive
-	@test -d seaweedfs/weed || (echo "Missing ./seaweedfs (local SeaweedFS clone with patches). See docs/seaweedfs-disk-health.md" && exit 1)
 
-up: init
+init-seaweedfs:
+	chmod +x ./scripts/init_seaweedfs.sh
+	./scripts/init_seaweedfs.sh
+
+check-seaweedfs:
+	chmod +x ./scripts/check_seaweedfs.sh
+	./scripts/check_seaweedfs.sh
+
+up: init check-seaweedfs
 	$(COMPOSE) up -d --build
 
-up-multi-dir: init
+up-multi-dir: init check-seaweedfs
 	$(COMPOSE_MULTI) up -d --build
 
-up-persist: init
+up-persist: init check-seaweedfs
 	$(COMPOSE_PERSIST) up -d --build
 
 down:
@@ -62,11 +71,12 @@ test-file:
 	@dd if=/dev/urandom of=$(TEST_FILE) bs=1M count=1 status=none
 	@echo "Created $(TEST_FILE)"
 
-test: test-file build-cli health
+test: check-seaweedfs test-file build-cli health
 	@out=$$(./scripts/put_fragment.sh $(TEST_FILE) camera-test); echo "$$out"; \
 	fid=$$(echo "$$out" | awk '/fragment_id:/ {print $$2}'); \
 	./scripts/get_fragment.sh camera-test "$$fid"
 
+# TODO: add check-seaweedfs once integration tests assume pinned fork binary
 test-go: health
 	$(GO) test -tags=integration -v -count=1 ./test/integration/...
 
@@ -81,10 +91,10 @@ put-v1: test-file
 put-snapshot: test-file
 	./scripts/put_snapshot.sh $(TEST_FILE) snapshot-manual
 
-verify-path: test-file build-cli health
+verify-path: check-seaweedfs test-file build-cli health
 	./scripts/verify_production_path.sh $(TEST_FILE)
 
-test-sideweed: build-cli health
+test-sideweed: check-seaweedfs build-cli health
 	chmod +x ./scripts/test_sideweed.sh
 	./scripts/test_sideweed.sh
 
@@ -119,6 +129,7 @@ chaos-disk-readonly:
 chaos-reset:
 	./scripts/chaos/reset_volumes.sh volume1
 
+# TODO: add check-seaweedfs (chaos-matrix needs disk-health patch; run make up first)
 chaos-matrix:
 	chmod +x ./scripts/chaos/run_matrix.sh
 	./scripts/chaos/run_matrix.sh

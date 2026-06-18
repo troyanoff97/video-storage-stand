@@ -24,9 +24,13 @@ Snapshots: same write path, bucket csb
 
 ```bash
 git submodule update --init --recursive
+SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs
+make check-seaweedfs
 make up && make health && make test
 ./scripts/verify_production_path.sh
 ```
+
+SeaweedFS is an **external customer fork** (not a submodule). Pin: [docs/SEAWEEDFS_PIN.md](docs/SEAWEEDFS_PIN.md).
 
 ## Ports
 
@@ -61,6 +65,8 @@ make up && make health && make test
 | Target | Description |
 |--------|-------------|
 | `make test` | Production PUT + GET smoke |
+| `make check-seaweedfs` | Verify SeaweedFS fork at pin `1528e7d` |
+| `make init-seaweedfs` | Clone customer fork (`SEAWEEDFS_REPO_URL`) |
 | `make test-sideweed` | Sideweed write degradation gate |
 | `make chaos-multi-dir` | Disk health via S3 path |
 | `make chaos-matrix` | Fault matrix via S3 path |
@@ -73,4 +79,5 @@ make up && make health && make test
 - [PRODUCTION-DEPLOY.md](docs/PRODUCTION-DEPLOY.md)
 - [DEBUG.md](docs/DEBUG.md)
 - [sideweed-health.md](docs/sideweed-health.md)
+- [SEAWEEDFS_PIN.md](docs/SEAWEEDFS_PIN.md)
 - [seaweedfs-disk-health.md](docs/seaweedfs-disk-health.md)
