@@ -1,104 +1,64 @@
-# SeaweedFS customer private fork — настройка (ручной push)
+# SeaweedFS customer fork — настройка
 
-Инструкция по подготовке patched ветки SeaweedFS для private GitHub fork заказчика (Aziz TZ §4.1). **Агент не выполняет push** — вы пушите вручную, когда готовы.
+Fork: [github.com/troyanoff97/seaweedfs](https://github.com/troyanoff97/seaweedfs)  
+Upstream (read-only): [github.com/seaweedfs/seaweedfs](https://github.com/seaweedfs/seaweedfs)  
+Stand repo: [github.com/troyanoff97/video-storage-stand](https://github.com/troyanoff97/video-storage-stand)
 
-**Не пушить** в upstream `seaweedfs/seaweedfs`.
-
-## Текущее локальное состояние
+## Текущее состояние (опубликовано)
 
 | Параметр | Значение |
 |----------|----------|
 | Путь clone | `./seaweedfs` (gitignored в stand repo) |
 | Ветка | `feat/volume-disk-health-isolation` |
 | Pin commit | `1528e7d` / `1528e7d6d610330ec0bc8256090005ffbe09d64c` |
-| База | upstream tag 3.80 |
-| Образ стенда | `docker/seaweedfs.Dockerfile` → `work2-seaweedfs:local` |
+| Remote push | `customer` → `git@github.com:troyanoff97/seaweedfs.git` |
+| Upstream | fetch only; `git remote set-url --push upstream DISABLED` |
 
-На ветке — disk health isolation и последующие исправления (unhealthy startup при одном `-dir`, reporting disk error в `addVolume`).
-
-## 1. Создать private fork на GitHub (org заказчика)
-
-1. Заказчик создаёт пустой private repo, например `github.com/<customer>/seaweedfs`.
-2. Не использовать public fork, если контракт требует private code.
-
-## 2. Добавить remote и push (вручную)
+## Локальная настройка remotes
 
 ```bash
-cd <stand-repo>/seaweedfs
+cd video-storage-stand/seaweedfs
 
 git remote -v
-# upstream должен указывать на seaweedfs/seaweedfs (read-only)
-
-git remote add customer git@github.com:<customer>/seaweedfs.git
-# или HTTPS: https://github.com/<customer>/seaweedfs.git
+git remote add customer git@github.com:troyanoff97/seaweedfs.git   # если ещё нет
+git remote add upstream https://github.com/seaweedfs/seaweedfs.git # если ещё нет
+git remote set-url --push upstream DISABLED
 
 git checkout feat/volume-disk-health-isolation
-git log --oneline -5   # verify commits
-
-# Пушить ветку, НЕ raw commit SHA:
 git push -u customer feat/volume-disk-health-isolation
-# опционально: git push customer feat/volume-disk-health-isolation:main
 
-# Проверка, что pin commit доступен на remote:
 git ls-remote customer feat/volume-disk-health-isolation
-git fetch customer feat/volume-disk-health-isolation
 git branch -r --contains 1528e7d6d610330ec0bc8256090005ffbe09d64c
-# ожидается: customer/feat/volume-disk-health-isolation
 ```
 
-**Не использовать:** `git push customer 1528e7d6d610330ec0bc8256090005ffbe09d64c` — push по SHA создаёт detached ref и не подходит для `make init-seaweedfs`.
+**Не использовать:** `git push customer 1528e7d6d610330ec0bc8256090005ffbe09d64c`  
+**Не пушить** в `upstream` (seaweedfs/seaweedfs).
 
-## 3. Сборка и deploy на volume node
+## Fresh clone stand
 
 ```bash
-# Из stand repo (использует локальный ./seaweedfs context)
-cd <stand-repo>
-make up   # builds work2-seaweedfs:local
+git clone git@github.com:troyanoff97/video-storage-stand.git
+cd video-storage-stand
+git submodule update --init --recursive
+SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs
+make check-seaweedfs
+make up
+```
 
-# Или на bare metal из customer fork:
-git clone git@github.com:<customer>/seaweedfs.git
+## Сборка на volume node (bare metal)
+
+```bash
+git clone git@github.com:troyanoff97/seaweedfs.git
 cd seaweedfs
 git checkout feat/volume-disk-health-isolation
-cd docker
-docker build -t seaweedfs-disk-health:prod -f Dockerfile.local ../..
+# docker build / weed volume — см. PRODUCTION-DEPLOY.md
 ```
 
-Запуск volume server (production: обычно один `-dir` на node на RAID mount):
+## Проверка после deploy
 
 ```bash
-weed volume -mserver=master:9333 -dir=/mnt/raid/volume -max=8 \
-  -ip=<volume-host> -dataCenter=dc1 -rack=rack1
-```
-
-Multi-dir на одном node (lab / стенд):
-
-```bash
-weed volume -dir=/data1,/data2 -max=3,3 -mserver=master:9333
-```
-
-## 4. Проверка после deploy
-
-```bash
-# Логи при disk fault
 docker logs <volume-container> 2>&1 | grep 'disk location'
-
-# Ожидаемые паттерны:
-#   marked unhealthy (...); new writes disabled on this directory
-#   recovered and is healthy again; writes re-enabled
-
-# Регрессия на стенде (опционально)
-cd <stand-repo>
-make chaos-multi-dir
+cd video-storage-stand && make chaos-multi-dir
 ```
 
-## 5. Чего **нет** в этом fork
-
-- Cassandra csb/vab (Aziz §5) — отдельная работа
-- Блокировка PUT sideweed (Aziz §6.2–6.4) — fork sideweed: `troyanoff97/sideweed`
-- Prometheus `/status` disk health gauge (опционально §4.4) — пока не реализовано
-
-## 6. Связь со stand repo
-
-Stand repo ссылается на `./seaweedfs` только на **этапе сборки**. CI/production должны клонировать **customer fork**, а не полагаться на локальный путь разработчика.
-
-См. также: [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md), [seaweedfs-disk-health.md](seaweedfs-disk-health.md), [STAND-TESTING.md](STAND-TESTING.md), [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md).
+См. также: [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md), [seaweedfs-disk-health.md](seaweedfs-disk-health.md), [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md).

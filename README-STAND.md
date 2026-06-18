@@ -23,12 +23,16 @@ Snapshots: тот же write path, bucket csb
 ## Быстрый старт
 
 ```bash
+git clone git@github.com:troyanoff97/video-storage-stand.git
+cd video-storage-stand
 git submodule update --init --recursive
-SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs
+SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs
 make check-seaweedfs
 make up && make health && make test
 ./scripts/verify_production_path.sh
 ```
+
+**Репозитории:** stand — [video-storage-stand](https://github.com/troyanoff97/video-storage-stand); SeaweedFS fork — [seaweedfs](https://github.com/troyanoff97/seaweedfs); sideweed fork — [sideweed](https://github.com/troyanoff97/sideweed). Go module: `github.com/troyanoff97/video-storage-stand` (совпадает с именем repo).
 
 SeaweedFS — **внешний customer fork** (не submodule). Pin: [docs/SEAWEEDFS_PIN.md](docs/SEAWEEDFS_PIN.md).
 

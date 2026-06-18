@@ -16,18 +16,18 @@ fail() {
 
 if [ ! -d "$SEAWEEDFS_DIR" ]; then
   fail "./seaweedfs is missing. Clone the customer fork, e.g.:
-  SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs
+  SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs
 See docs/SEAWEEDFS_PIN.md"
 fi
 
 if [ ! -d "$SEAWEEDFS_DIR/weed" ]; then
   fail "$SEAWEEDFS_DIR/weed not found — not a SeaweedFS source tree.
-Run: SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs"
+Run: SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs"
 fi
 
 if ! git -C "$SEAWEEDFS_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   fail "$SEAWEEDFS_DIR is not a git repository.
-Run: SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs"
+Run: SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs"
 fi
 
 short_head="$(git -C "$SEAWEEDFS_DIR" rev-parse --short=7 HEAD)"
@@ -38,7 +38,7 @@ if [ "$short_head" != "$REQUIRED_SHORT_COMMIT" ] && [ "$full_head" != "$REQUIRED
 Checkout the pinned commit:
   cd seaweedfs && git fetch origin && git checkout ${REQUIRED_FULL_COMMIT}
 Or re-init:
-  SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs
+  SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs
 See docs/SEAWEEDFS_PIN.md"
 fi
 

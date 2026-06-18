@@ -38,7 +38,7 @@ READ:   client → sideweed  OR  HAProxy/Varnish → S3 Gateway
 Клонирование стенда:
 
 ```bash
-SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs
+SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs
 make check-seaweedfs
 ```
 
@@ -81,7 +81,7 @@ HAProxy → sideweed-read → S3 Gateway pool
 
 ```bash
 git submodule update --init --recursive
-SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs
+SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs
 make check-seaweedfs
 make up
 make test                    # PUT sideweed→S3, GET HAProxy→S3

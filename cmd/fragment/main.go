@@ -9,7 +9,7 @@ import (
 
 	"github.com/gocql/gocql"
 
-	"github.com/troyanoff97/video-archive-stand/pkg/fragment"
+	"github.com/troyanoff97/video-storage-stand/pkg/fragment"
 )
 
 func main() {

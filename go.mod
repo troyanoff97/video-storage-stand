@@ -1,4 +1,4 @@
-module github.com/troyanoff97/video-archive-stand
+module github.com/troyanoff97/video-storage-stand
 
 go 1.22
 

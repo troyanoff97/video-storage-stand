@@ -9,7 +9,7 @@ SEAWEEDFS_DIR="${SEAWEEDFS_DIR:-./seaweedfs}"
 REQUIRED_BRANCH="${SEAWEEDFS_REQUIRED_BRANCH:-feat/volume-disk-health-isolation}"
 REQUIRED_SHORT_COMMIT="${SEAWEEDFS_REQUIRED_COMMIT:-1528e7d}"
 REQUIRED_FULL_COMMIT="${SEAWEEDFS_REQUIRED_COMMIT_FULL:-1528e7d6d610330ec0bc8256090005ffbe09d64c}"
-DEFAULT_REPO_PLACEHOLDER="git@github.com:<org>/seaweedfs.git"
+DEFAULT_REPO_PLACEHOLDER="git@github.com:troyanoff97/seaweedfs.git"
 
 fail() {
   echo "ERROR: $*" >&2

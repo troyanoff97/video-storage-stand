@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/troyanoff97/video-archive-stand/pkg/fragment"
+	"github.com/troyanoff97/video-storage-stand/pkg/fragment"
 )
 
 // TestDebugAssignToVolume1 exercises master /dir/assign directly (not production path).

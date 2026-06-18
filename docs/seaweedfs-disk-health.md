@@ -107,8 +107,8 @@ go test ./topology -run TestMasterAssignSkipsVolumesOnUnhealthyDiskDir -v
 ## Сборка (стенд)
 
 ```bash
-cd <stand-repo>
-SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs   # только fresh clone
+cd video-storage-stand
+SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs   # только fresh clone
 make check-seaweedfs
 make up
 make chaos-multi-dir   # отказ /data1 → PUT на /data2

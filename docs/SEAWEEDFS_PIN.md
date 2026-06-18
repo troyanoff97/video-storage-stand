@@ -2,6 +2,16 @@
 
 Стенд **не должен** собирать SeaweedFS из upstream `seaweedfs/seaweedfs` — нужен **customer fork** с патчем disk-health.
 
+## Репозитории
+
+| Роль | URL |
+|------|-----|
+| Stand repo | `git@github.com:troyanoff97/video-storage-stand.git` |
+| SeaweedFS fork (push) | `git@github.com:troyanoff97/seaweedfs.git` |
+| SeaweedFS upstream (read-only) | `https://github.com/seaweedfs/seaweedfs` |
+| sideweed fork | `git@github.com:troyanoff97/sideweed.git` |
+| sideweed upstream (задание) | `https://github.com/targetaidev/sideweed` |
+
 ## Зачем нужен fork
 
 В upstream нет:
@@ -17,8 +27,7 @@
 
 | Параметр | Значение |
 |----------|----------|
-| **URL репозитория** | `SEAWEEDFS_REPO_URL` (env, не коммитится) |
-| **Placeholder по умолчанию** | `git@github.com:<org>/seaweedfs.git` |
+| **URL репозитория** | `SEAWEEDFS_REPO_URL` (env; по умолчанию fork выше) |
 | **Ветка** | `feat/volume-disk-health-isolation` |
 | **Commit (short)** | `1528e7d` |
 | **Commit (full)** | `1528e7d6d610330ec0bc8256090005ffbe09d64c` |
@@ -32,16 +41,16 @@
 git clone https://github.com/seaweedfs/seaweedfs.git seaweedfs
 ```
 
-Используйте URL customer fork через `SEAWEEDFS_REPO_URL`.
+Используйте fork: `SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git`.
 
 ## Инициализация (fresh clone)
 
 ```bash
-git clone <stand-repo-url> work2
-cd work2
+git clone git@github.com:troyanoff97/video-storage-stand.git video-storage-stand
+cd video-storage-stand
 git submodule update --init --recursive
 
-SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs
+SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs
 make check-seaweedfs
 make up
 make test
@@ -51,7 +60,7 @@ make test
 
 ```bash
 cd seaweedfs
-git rev-parse --short HEAD    # must print: 1528e7d
+git rev-parse --short=7 HEAD    # must print: 1528e7d
 git log -1 --oneline          # must include disk-health readonly/heartbeat fix
 ```
 
