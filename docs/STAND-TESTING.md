@@ -7,6 +7,7 @@ make up
 make health
 make test              # PUT sideweed→S3, GET HAProxy→S3
 make test-go
+make test-sideweed     # PUT block when master/volumes/S3 unhealthy
 ./scripts/verify_production_path.sh   # log proof
 ```
 
@@ -28,6 +29,7 @@ make test-go
 | Target | Path |
 |--------|------|
 | `make test` | Production PUT + GET |
+| `make test-sideweed` | Sideweed write gate: PUT 503 on degraded cluster |
 | `make chaos-multi-dir` | Disk /data1 fault via S3 PUT |
 | `make chaos-matrix` | Fault matrix via S3 PUT |
 

@@ -107,6 +107,17 @@ services:
       dockerfile: ../docker/sideweed.Dockerfile
     command: >
       -l --json --health-path=/healthz --health-duration=3s
+      --write-health-enabled
+      --write-health-interval=3s
+      --write-unhealthy-threshold=2
+      --write-recovery-threshold=2
+      --put-block-status=503
+      --upstream-timeout=30s
+      --write-health-timeout=5s
+      --write-health-check=s3=http://s3:8333/healthz
+      --write-health-check=filer=http://filer:8888/
+      --write-health-check=master=http://master:9333/cluster/status
+      --write-health-check="assign=http://master:9333/dir/assign?count=1&replication=000|200"
       --address=:8880 http://s3:8333
     ports:
       - "8880:8880"

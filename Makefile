@@ -7,7 +7,8 @@ GO := go
 .PHONY: help init up down logs health test test-go test-integration test-all put get clean build-cli \
 	chaos-volume-down chaos-volume-up chaos-master-down chaos-master-up \
 	chaos-mount-unavailable chaos-disk-full chaos-disk-readonly chaos-reset \
-	chaos-matrix chaos-recovery chaos-recovery-disk chaos-multi-dir put-v1 up-multi-dir up-persist
+	chaos-matrix chaos-recovery chaos-recovery-disk chaos-multi-dir put-v1 up-multi-dir up-persist \
+	test-sideweed
 
 help:
 	@echo "Targets:"
@@ -23,6 +24,7 @@ help:
 	@echo "  put-v1               DEBUG: direct volume PUT (scripts/debug/)"
 	@echo "  put-snapshot         PUT snapshot to bucket csb (production path)"
 	@echo "  verify-path          prove PUT goes sideweed → S3"
+	@echo "  test-sideweed        sideweed write degradation gate (PUT block / recovery)"
 	@echo "  chaos-matrix         run fault scenarios and save results"
 	@echo "  chaos-recovery       fault -> reset -> assert PUT/GET recovery"
 	@echo "  chaos-recovery-disk  disk ro -> soft reset -> GET baseline (no restart)"
@@ -81,6 +83,10 @@ put-snapshot: test-file
 
 verify-path: test-file build-cli health
 	./scripts/verify_production_path.sh $(TEST_FILE)
+
+test-sideweed: build-cli health
+	chmod +x ./scripts/test_sideweed.sh
+	./scripts/test_sideweed.sh
 
 get:
 	@test -n "$(CAMERA)" && test -n "$(FRAGMENT)" || (echo "Usage: make get CAMERA=camera-1 FRAGMENT=<uuid>" && exit 1)

@@ -26,6 +26,22 @@ Matrix exits non-zero only on **FAIL**.
 - S3 down → sideweed 502, backend marked DOWN
 - No per-request retry
 
+## Sideweed write gate (`make test-sideweed`)
+
+Write sideweed (`:8880`) probes S3, filer, master, and `/dir/assign` before allowing PUT.
+
+| Fault | PUT (write sideweed) | GET (read path) |
+|-------|----------------------|-----------------|
+| master down | **503** fast (`PUT_BLOCKED`) | OK (existing object) |
+| all volumes down | **503** | FAIL when volumes down |
+| S3 down | **502/503** fast | FAIL |
+| write sideweed down | connection refused | OK via HAProxy/sideweed-read |
+| recovered | PUT OK (`RECOVERED` log) | OK |
+
+Read sideweed (`sideweed-read`) has **no** write gate.
+
+Details: [sideweed-health.md](sideweed-health.md)
+
 ## Matrix scenarios (`make chaos-matrix`)
 
 Stand: `replication=000`, two volume nodes.
@@ -37,7 +53,7 @@ Stand: `replication=000`, two volume nodes.
 | 2 | mount unavailable v1 (v2 stopped) | FAIL if fault applied; else SKIP | — |
 | 3 | disk full v1 (v2 stopped) | FAIL if fault applied; else SKIP | — |
 | 4 | disk ro v1 (v2 stopped) | FAIL if fault applied; else SKIP | PASS baseline after v2 restored |
-| 5 | master down | **FAIL** (no new assign/write) | optional (existing object may PASS) |
+| 5 | master down | **FAIL** (503 write gate or S3 error) | optional (existing object may PASS) |
 | 6 | all volumes down | FAIL | FAIL |
 | 7 | write sideweed down | FAIL | **PASS** (read via sideweed-read) |
 

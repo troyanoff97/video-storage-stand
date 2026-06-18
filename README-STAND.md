@@ -18,6 +18,7 @@ Snapshots: same write path, bucket csb
 - sideweed balances **S3 Gateway**, not volumes
 - HAProxy/Varnish = read only
 - Direct volume access = **debug only** → [docs/DEBUG.md](docs/DEBUG.md)
+- Write sideweed blocks PUT when SeaweedFS write path is unhealthy → [docs/sideweed-health.md](docs/sideweed-health.md)
 
 ## Quick start
 
@@ -60,6 +61,7 @@ make up && make health && make test
 | Target | Description |
 |--------|-------------|
 | `make test` | Production PUT + GET smoke |
+| `make test-sideweed` | Sideweed write degradation gate |
 | `make chaos-multi-dir` | Disk health via S3 path |
 | `make chaos-matrix` | Fault matrix via S3 path |
 | `make put-v1` | **Debug** — redirects to `scripts/debug/put_to_volume1.sh` |
@@ -70,4 +72,5 @@ make up && make health && make test
 - [TZ-DEVIATIONS.md](docs/TZ-DEVIATIONS.md)
 - [PRODUCTION-DEPLOY.md](docs/PRODUCTION-DEPLOY.md)
 - [DEBUG.md](docs/DEBUG.md)
+- [sideweed-health.md](docs/sideweed-health.md)
 - [seaweedfs-disk-health.md](docs/seaweedfs-disk-health.md)
