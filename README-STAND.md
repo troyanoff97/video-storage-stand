@@ -1,6 +1,6 @@
 # Локальный стенд: production-like SeaweedFS + sideweed + S3
 
-## Architecture (confirmed by customer)
+## Архитектура (подтверждена заказчиком)
 
 ```
 WRITE:
@@ -8,19 +8,19 @@ WRITE:
 
 READ:
   client → HAProxy:8882 → sideweed-read → S3 Gateway:8333
-  (production may also use sideweed directly for read)
+  (в production read может идти напрямую через sideweed)
 
-Snapshots: same write path, bucket csb
+Snapshots: тот же write path, bucket csb
 ```
 
-**Production rules:**
-- Clients never talk to volume nodes
-- sideweed balances **S3 Gateway**, not volumes
-- HAProxy/Varnish = read only
-- Direct volume access = **debug only** → [docs/DEBUG.md](docs/DEBUG.md)
-- Write sideweed blocks PUT when SeaweedFS write path is unhealthy → [docs/sideweed-health.md](docs/sideweed-health.md)
+**Правила production:**
+- Клиенты **никогда** не обращаются к volume nodes напрямую
+- sideweed балансирует **S3 Gateway**, а не volume nodes
+- HAProxy/Varnish — только read path
+- Прямой доступ к volume — **только debug** → [docs/DEBUG.md](docs/DEBUG.md)
+- Write sideweed блокирует PUT при нездоровом write path SeaweedFS → [docs/sideweed-health.md](docs/sideweed-health.md)
 
-## Quick start
+## Быстрый старт
 
 ```bash
 git submodule update --init --recursive
@@ -30,49 +30,49 @@ make up && make health && make test
 ./scripts/verify_production_path.sh
 ```
 
-SeaweedFS is an **external customer fork** (not a submodule). Pin: [docs/SEAWEEDFS_PIN.md](docs/SEAWEEDFS_PIN.md).
+SeaweedFS — **внешний customer fork** (не submodule). Pin: [docs/SEAWEEDFS_PIN.md](docs/SEAWEEDFS_PIN.md).
 
-## Ports
+## Порты
 
-| Service | Port | Role |
-|---------|------|------|
+| Сервис | Порт | Роль |
+|--------|------|------|
 | sideweed | 8880 | production write |
 | haproxy | 8882 | production read |
 | s3 | 8333 | S3 Gateway |
 | filer | 8888 | filer |
 | master | 9333 | topology (internal) |
 | volume1/2 | 8080/8081 | blobs (internal) |
-| cassandra | 9042 | stand fragment index |
+| cassandra | 9042 | индекс фрагментов на стенде |
 
-## Commands
+## Команды
 
 ```bash
-# Production PUT (fragments)
+# Production PUT (фрагменты)
 ./scripts/put_fragment.sh /tmp/file.bin camera-1
 
-# Production PUT (snapshots → bucket csb)
+# Production PUT (снимки → bucket csb)
 ./scripts/put_snapshot.sh /tmp/snap.bin snap-1
 
 # Production GET
 ./scripts/get_fragment.sh camera-1 <uuid>
 
-# Debug only
+# Только debug
 ./scripts/debug/put_fragment_direct.sh /tmp/file.bin camera-debug
 ```
 
 ## Makefile
 
-| Target | Description |
-|--------|-------------|
-| `make test` | Production PUT + GET smoke |
-| `make check-seaweedfs` | Verify SeaweedFS fork at pin `1528e7d` |
-| `make init-seaweedfs` | Clone customer fork (`SEAWEEDFS_REPO_URL`) |
-| `make test-sideweed` | Sideweed write degradation gate |
-| `make chaos-multi-dir` | Disk health via S3 path |
-| `make chaos-matrix` | Fault matrix via S3 path |
-| `make put-v1` | **Debug** — redirects to `scripts/debug/put_to_volume1.sh` |
+| Target | Описание |
+|--------|----------|
+| `make test` | Smoke: production PUT + GET |
+| `make check-seaweedfs` | Проверка SeaweedFS fork на pin `1528e7d` |
+| `make init-seaweedfs` | Клон customer fork (`SEAWEEDFS_REPO_URL`) |
+| `make test-sideweed` | Write gate sideweed при деградации |
+| `make chaos-multi-dir` | Disk health через S3 path |
+| `make chaos-matrix` | Матрица отказов через S3 path |
+| `make put-v1` | **Debug** — редирект на `scripts/debug/put_to_volume1.sh` |
 
-## Docs
+## Документация
 
 - [STAND-TESTING.md](docs/STAND-TESTING.md)
 - [TZ-DEVIATIONS.md](docs/TZ-DEVIATIONS.md)

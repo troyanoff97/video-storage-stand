@@ -1,13 +1,12 @@
-# SeaweedFS weed-volume: per-disk health isolation
+# SeaweedFS weed-volume: изоляция disk health по дискам
 
-Патчи в локальном clone `./seaweedfs` (ветка `feat/volume-disk-health-isolation`, **pin `1528e7d`**), база — upstream [seaweedfs/seaweedfs](https://github.com/seaweedfs/seaweedfs) tag 3.80.
+Патчи в локальном clone `./seaweedfs` (ветка `feat/volume-disk-health-isolation`, **pin `1528e7d`**, full SHA `1528e7d6d610330ec0bc8256090005ffbe09d64c`), база — upstream [seaweedfs/seaweedfs](https://github.com/seaweedfs/seaweedfs) tag 3.80.
 
 **Инициализация:** [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md) — `make init-seaweedfs`, `make check-seaweedfs`.  
-**GitHub-fork для SeaweedFS:** customer private repo via `SEAWEEDFS_REPO_URL`. **sideweed fork:** [github.com/troyanoff97/sideweed](https://github.com/troyanoff97/sideweed).
+**GitHub-fork для SeaweedFS:** customer private repo через `SEAWEEDFS_REPO_URL` (не push в upstream).  
+**sideweed fork:** [github.com/troyanoff97/sideweed](https://github.com/troyanoff97/sideweed).
 
 Стенд: `docker/seaweedfs.Dockerfile` → `make up` (не `chrislusf/seaweedfs`). `make up` вызывает `check-seaweedfs` до сборки.
-
-> Push не выполняется агентом.
 
 ## Логика
 
@@ -105,14 +104,14 @@ go test ./storage -run 'TestIsDiskError|TestDiskLocationHealth|TestFindFreeLocat
 go test ./topology -run TestMasterAssignSkipsVolumesOnUnhealthyDiskDir -v
 ```
 
-## Build (stand)
+## Сборка (стенд)
 
 ```bash
-cd /home/cerf/Desktop/work2
-SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs   # fresh clone only
+cd <stand-repo>
+SEAWEEDFS_REPO_URL=git@github.com:<org>/seaweedfs.git make init-seaweedfs   # только fresh clone
 make check-seaweedfs
 make up
-make chaos-multi-dir   # /data1 fault → PUT на /data2
+make chaos-multi-dir   # отказ /data1 → PUT на /data2
 ```
 
 Customer private fork: [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md).  

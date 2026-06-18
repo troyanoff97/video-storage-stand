@@ -18,7 +18,7 @@ Snapshots: тот же write path, bucket csb
 - Клиент **никогда** не обращается к volume nodes напрямую
 - sideweed балансирует **S3 Gateway**, не volume endpoints
 - HAProxy/Varnish — **только read path**
-- Metadata в production пишет **SeaweedFS/filer** (не клиент)
+- Метаданные в production пишет **SeaweedFS/filer** (не клиент)
 
 ## Стенд (этап 1+2)
 
@@ -28,7 +28,7 @@ Snapshots: тот же write path, bucket csb
 | READ | `haproxy:8882` → `sideweed-read` → `s3:8333` |
 | Fragments bucket | `video-fragments` |
 | Snapshots bucket | `csb` (`scripts/put_snapshot.sh`) |
-| Debug direct volume | `scripts/debug/*` only |
+| Debug direct volume | только `scripts/debug/*` |
 
 ## Осознанные отличия стенда от production
 
@@ -39,11 +39,11 @@ Snapshots: тот же write path, bucket csb
 | Replication 001+ | `000` на dev stack | Иначе S3 collection не растёт при 2 nodes |
 | Несколько S3 GW | Один `s3:8333` | Минимальный compose |
 
-## Debug-only (не deviation)
+## Только debug (не deviation)
 
 См. [DEBUG.md](DEBUG.md):
 - `master /dir/assign` + direct volume POST
-- `sideweed-volumes` profile (native volume GET)
+- profile `sideweed-volumes` (native volume GET)
 - `fragment put --direct-volume`
 
 ## SeaweedFS disk health (этап 2)
@@ -52,8 +52,14 @@ Snapshots: тот же write path, bucket csb
 
 Проверка через **production S3 path**: `make chaos-multi-dir`.
 
+Pin fork: [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md).
+
 ## Sideweed
+
+Fork (push сюда): [github.com/troyanoff97/sideweed](https://github.com/troyanoff97/sideweed).  
+Upstream (read-only, не push): [github.com/targetaidev/sideweed](https://github.com/targetaidev/sideweed).
 
 - PUT/POST/GET — generic reverse proxy
 - Upstream write/read: `http://s3:8333`
 - Нет per-request retry; failover site/backend; proxy error → 502
+- Write gate: блокировка PUT при деградации — см. [sideweed-health.md](sideweed-health.md)

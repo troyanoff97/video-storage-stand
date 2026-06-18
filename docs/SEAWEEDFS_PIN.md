@@ -1,40 +1,40 @@
-# SeaweedFS fork pin (stand build)
+# Pin SeaweedFS fork (сборка стенда)
 
-The stand **must not** build SeaweedFS from upstream `seaweedfs/seaweedfs` — it requires a **customer fork** with the disk-health patch.
+Стенд **не должен** собирать SeaweedFS из upstream `seaweedfs/seaweedfs` — нужен **customer fork** с патчем disk-health.
 
-## Why a fork
+## Зачем нужен fork
 
-Upstream does not include:
+В upstream нет:
 
-- per-`dir` disk health isolation
-- existing volumes → readonly on unhealthy dir
-- master assign skip for readonly volume IDs
-- `/status` DiskHealth + immediate heartbeat on health change
+- изоляции disk health по каждому `dir`
+- перевода existing volumes в readonly при unhealthy dir
+- пропуска readonly volume ID в master assign
+- `/status` DiskHealth + немедленного heartbeat при смене health
 
-Without the pinned commit, `make up` builds the wrong binary and disk-health / S3-path chaos tests are invalid.
+Без закреплённого commit `make up` соберёт неверный бинарник; disk-health и chaos-тесты по S3 path будут недействительны.
 
-## Required pin
+## Обязательный pin
 
-| Item | Value |
-|------|-------|
-| **Repo URL** | `SEAWEEDFS_REPO_URL` (env var, not committed) |
-| **Default placeholder** | `git@github.com:<org>/seaweedfs.git` |
-| **Branch** | `feat/volume-disk-health-isolation` |
+| Параметр | Значение |
+|----------|----------|
+| **URL репозитория** | `SEAWEEDFS_REPO_URL` (env, не коммитится) |
+| **Placeholder по умолчанию** | `git@github.com:<org>/seaweedfs.git` |
+| **Ветка** | `feat/volume-disk-health-isolation` |
 | **Commit (short)** | `1528e7d` |
 | **Commit (full)** | `1528e7d6d610330ec0bc8256090005ffbe09d64c` |
 
-`./seaweedfs` is **gitignored** in the stand repo — it is an external clone, not a submodule.
+`./seaweedfs` **в .gitignore** stand repo — внешний clone, не submodule.
 
-## Do not use upstream for this stand
+## Нельзя использовать upstream для этого стенда
 
 ```bash
-# WRONG for stand builds:
+# НЕВЕРНО для сборки стенда:
 git clone https://github.com/seaweedfs/seaweedfs.git seaweedfs
 ```
 
-Use the customer fork URL passed via `SEAWEEDFS_REPO_URL`.
+Используйте URL customer fork через `SEAWEEDFS_REPO_URL`.
 
-## Initialize (fresh clone)
+## Инициализация (fresh clone)
 
 ```bash
 git clone <stand-repo-url> work2
@@ -47,7 +47,7 @@ make up
 make test
 ```
 
-## Verify commit manually
+## Проверка commit вручную
 
 ```bash
 cd seaweedfs
@@ -55,19 +55,19 @@ git rev-parse --short HEAD    # must print: 1528e7d
 git log -1 --oneline          # must include disk-health readonly/heartbeat fix
 ```
 
-Or from stand root:
+Или из корня стенда:
 
 ```bash
 make check-seaweedfs
 ```
 
-## Scripts
+## Скрипты
 
-| Script | Purpose |
-|--------|---------|
-| `scripts/init_seaweedfs.sh` | clone (if missing) + checkout pinned commit |
-| `scripts/check_seaweedfs.sh` | fail fast if missing or wrong commit |
+| Скрипт | Назначение |
+|--------|------------|
+| `scripts/init_seaweedfs.sh` | clone (если нет) + checkout pinned commit |
+| `scripts/check_seaweedfs.sh` | fail-fast при отсутствии или неверном commit |
 
-`make test-go` and `make chaos-matrix` do not call `check-seaweedfs` yet — run `make check-seaweedfs` (or `make up`, which checks before build) first.
+`make test-go` и `make chaos-matrix` пока **не** вызывают `check-seaweedfs` — сначала выполните `make check-seaweedfs` (или `make up`, который проверяет до сборки).
 
-See also [seaweedfs-disk-health.md](seaweedfs-disk-health.md), [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md).
+См. также [seaweedfs-disk-health.md](seaweedfs-disk-health.md), [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md).

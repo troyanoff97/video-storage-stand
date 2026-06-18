@@ -1,49 +1,52 @@
-# SeaweedFS customer private fork — setup (manual push)
+# SeaweedFS customer private fork — настройка (ручной push)
 
-Instructions for preparing the patched SeaweedFS branch for the customer's private GitHub fork (Aziz TZ §4.1). **The agent does not push**; you push manually when ready.
+Инструкция по подготовке patched ветки SeaweedFS для private GitHub fork заказчика (Aziz TZ §4.1). **Агент не выполняет push** — вы пушите вручную, когда готовы.
 
-## Current local state
+**Не пушить** в upstream `seaweedfs/seaweedfs`.
 
-| Item | Value |
-|------|-------|
-| Clone path | `./seaweedfs` (gitignored in stand repo) |
-| Branch | `feat/volume-disk-health-isolation` |
-| Base | upstream tag 3.80 |
-| Stand image | `docker/seaweedfs.Dockerfile` → `work2-seaweedfs:local` |
+## Текущее локальное состояние
 
-Commits on the branch include disk health isolation and follow-up fixes (single `-dir` unhealthy startup, `addVolume` disk error reporting).
+| Параметр | Значение |
+|----------|----------|
+| Путь clone | `./seaweedfs` (gitignored в stand repo) |
+| Ветка | `feat/volume-disk-health-isolation` |
+| Pin commit | `1528e7d` / `1528e7d6d610330ec0bc8256090005ffbe09d64c` |
+| База | upstream tag 3.80 |
+| Образ стенда | `docker/seaweedfs.Dockerfile` → `work2-seaweedfs:local` |
 
-## 1. Create private fork on GitHub (customer org)
+На ветке — disk health isolation и последующие исправления (unhealthy startup при одном `-dir`, reporting disk error в `addVolume`).
 
-1. Customer creates empty private repo, e.g. `github.com/<customer>/seaweedfs`.
-2. Do **not** use a public fork if the contract requires private code.
+## 1. Создать private fork на GitHub (org заказчика)
 
-## 2. Add remote and push (you, manually)
+1. Заказчик создаёт пустой private repo, например `github.com/<customer>/seaweedfs`.
+2. Не использовать public fork, если контракт требует private code.
+
+## 2. Добавить remote и push (вручную)
 
 ```bash
-cd /home/cerf/Desktop/work2/seaweedfs
+cd <stand-repo>/seaweedfs
 
 git remote -v
-# upstream should point to seaweedfs/seaweedfs
+# upstream должен указывать на seaweedfs/seaweedfs (read-only)
 
 git remote add customer git@github.com:<customer>/seaweedfs.git
-# or HTTPS: https://github.com/<customer>/seaweedfs.git
+# или HTTPS: https://github.com/<customer>/seaweedfs.git
 
 git checkout feat/volume-disk-health-isolation
 git log --oneline -5   # verify commits
 
 git push -u customer feat/volume-disk-health-isolation
-# optional: git push customer feat/volume-disk-health-isolation:main
+# опционально: git push customer feat/volume-disk-health-isolation:main
 ```
 
-## 3. Build and deploy on a volume node
+## 3. Сборка и deploy на volume node
 
 ```bash
-# From stand repo (uses local ./seaweedfs context)
-cd /home/cerf/Desktop/work2
+# Из stand repo (использует локальный ./seaweedfs context)
+cd <stand-repo>
 make up   # builds work2-seaweedfs:local
 
-# Or on bare metal from customer fork:
+# Или на bare metal из customer fork:
 git clone git@github.com:<customer>/seaweedfs.git
 cd seaweedfs
 git checkout feat/volume-disk-health-isolation
@@ -51,42 +54,42 @@ cd docker
 docker build -t seaweedfs-disk-health:prod -f Dockerfile.local ../..
 ```
 
-Run volume server (production: typically one `-dir` per node on RAID mount):
+Запуск volume server (production: обычно один `-dir` на node на RAID mount):
 
 ```bash
 weed volume -mserver=master:9333 -dir=/mnt/raid/volume -max=8 \
   -ip=<volume-host> -dataCenter=dc1 -rack=rack1
 ```
 
-Multi-dir on one node (lab / stand):
+Multi-dir на одном node (lab / стенд):
 
 ```bash
 weed volume -dir=/data1,/data2 -max=3,3 -mserver=master:9333
 ```
 
-## 4. Verify after deploy
+## 4. Проверка после deploy
 
 ```bash
-# Logs on disk fault
+# Логи при disk fault
 docker logs <volume-container> 2>&1 | grep 'disk location'
 
-# Expected patterns:
+# Ожидаемые паттерны:
 #   marked unhealthy (...); new writes disabled on this directory
 #   recovered and is healthy again; writes re-enabled
 
-# Stand regression (optional)
-cd /home/cerf/Desktop/work2
+# Регрессия на стенде (опционально)
+cd <stand-repo>
 make chaos-multi-dir
 ```
 
-## 5. What is **not** in this fork
+## 5. Чего **нет** в этом fork
 
-- Cassandra csb/vab (Aziz §5) — separate work
-- sideweed PUT blocking (Aziz §6.2–6.4) — sideweed fork: `troyanoff97/sideweed`
-- Prometheus `/status` disk health gauge (optional §4.4) — not implemented yet
+- Cassandra csb/vab (Aziz §5) — отдельная работа
+- Блокировка PUT sideweed (Aziz §6.2–6.4) — fork sideweed: `troyanoff97/sideweed`
+- Prometheus `/status` disk health gauge (опционально §4.4) — пока не реализовано
 
-## 6. Stand repo relationship
+## 6. Связь со stand repo
 
-The stand repo references `./seaweedfs` only at **build time**. CI/production should clone the **customer fork**, not rely on the developer's local path.
+Stand repo ссылается на `./seaweedfs` только на **этапе сборки**. CI/production должны клонировать **customer fork**, а не полагаться на локальный путь разработчика.
 
-See also: [seaweedfs-disk-health.md](seaweedfs-disk-health.md), [STAND-TESTING.md](STAND-TESTING.md).
+См. также: [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md), [seaweedfs-disk-health.md](seaweedfs-disk-health.md), [STAND-TESTING.md](STAND-TESTING.md).
