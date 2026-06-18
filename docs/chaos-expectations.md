@@ -34,7 +34,7 @@ Write sideweed (`:8880`) probes S3, filer, master, and `/dir/assign` before allo
 |-------|----------------------|-----------------|
 | master down | **503** fast (`PUT_BLOCKED`) | OK (existing object) |
 | all volumes down | **503** | FAIL when volumes down |
-| S3 down | **502/503** fast | FAIL |
+| S3 down | **503** fast (`s3_backend_down`) | FAIL when volumes/S3 path broken |
 | write sideweed down | connection refused | OK via HAProxy/sideweed-read |
 | recovered | PUT OK (`RECOVERED` log) | OK |
 

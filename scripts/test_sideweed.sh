@@ -7,7 +7,7 @@ cd "$ROOT_DIR"
 
 source "$(dirname "${BASH_SOURCE[0]}")/chaos/_common.sh"
 
-READ_URL="${READ_URL:-http://localhost:8882}"
+SIDEWEED_URL="${SIDEWEED_URL:-http://localhost:8880}"
 TEST_FILE="${TEST_FILE:-/tmp/sideweed-test.bin}"
 CAMERA="sideweed-gate-test"
 FAILURES=0
@@ -28,41 +28,38 @@ put_s3() {
   return "$code"
 }
 
-put_s3_http_code() {
-  local label="$1"
-  set +e
-  local out code start_ms elapsed
-  start_ms=$(date +%s%3N)
-  out=$(./scripts/put_fragment.sh "$TEST_FILE" "${CAMERA}-${label}" 2>&1)
-  code=$?
-  elapsed=$(( $(date +%s%3N) - start_ms ))
-  if [ "$code" -eq 0 ]; then
-    echo "200 ${elapsed}"
-    return 0
-  fi
-  if echo "$out" | grep -qE 'status code: 503|503 Service'; then
-    echo "503 ${elapsed}"
-    return 0
-  fi
-  if echo "$out" | grep -qE 'status code: 502|502 Bad'; then
-    echo "502 ${elapsed}"
-    return 0
-  fi
-  echo "fail ${elapsed}"
-  echo "$out" >&2
-  return 1
+# Raw PUT to sideweed — hits write gate before S3 auth (latency measurement).
+put_sideweed_raw() {
+  local key="$1"
+  curl -sS -o /tmp/sideweed-put-body.txt -w "%{http_code} %{time_total}" \
+    --max-time 2 \
+    -X PUT --data-binary @"$TEST_FILE" \
+    -H "Content-Type: application/octet-stream" \
+    "${SIDEWEED_URL}/video-fragments/${CAMERA}/${key}.bin" 2>/dev/null
+}
+
+parse_curl_result() {
+  local raw="$1"
+  local http_code elapsed_ms
+  http_code=$(echo "$raw" | awk '{print $1}')
+  elapsed_ms=$(echo "$raw" | awk '{printf "%.0f", $2 * 1000}')
+  echo "${http_code} ${elapsed_ms}"
 }
 
 wait_log() {
   local pattern="$1"
   local i
   for i in $(seq 1 30); do
-    if compose logs sideweed --tail=120 2>&1 | grep -qE "$pattern"; then
+    if compose logs sideweed --tail=150 2>&1 | grep -qE "$pattern"; then
       return 0
     fi
-    sleep 2
+    sleep 1
   done
   return 1
+}
+
+wait_write_degraded() {
+  wait_log 'WRITE_DEGRADED|"Status":"WRITE_DEGRADED"'
 }
 
 wait_put_ok() {
@@ -85,25 +82,29 @@ log "==> sideweed degradation integration tests"
 baseline_out=$(put_s3 "baseline" || true)
 if echo "$baseline_out" | grep -q SUCCESS; then
   BASELINE_FRAGMENT=$(echo "$baseline_out" | awk '/fragment_id:/ {print $2}')
-  pass "baseline PUT via sideweed → S3"
+  pass "baseline PUT via sideweed → S3 (200)"
 else
   fail "baseline PUT via sideweed → S3"
   echo "$baseline_out"
 fi
 
-log "==> master down → PUT blocked fast"
+log "==> master down → PUT blocked <1s after WRITE_DEGRADED"
 compose stop master
-sleep 8
-read -r http_code elapsed < <(put_s3_http_code "master-down" || echo "fail 0")
-if [ "$http_code" = "503" ] && [ "${elapsed:-99999}" -lt 8000 ]; then
-  pass "master down PUT fast 503 (${elapsed}ms)"
+if ! wait_write_degraded; then
+  fail "WRITE_DEGRADED not seen after master down"
 else
-  fail "master down PUT expected 503 fast, got http=${http_code} elapsed=${elapsed}ms"
+  pass "WRITE_DEGRADED logged (master_down)"
 fi
-if wait_log 'PUT_BLOCKED|"Status":"PUT_BLOCKED"|"Status":"DEGRADED"'; then
-  pass "sideweed log contains PUT_BLOCKED or DEGRADED"
+read -r http_code elapsed < <(parse_curl_result "$(put_sideweed_raw "master-down-$(date +%s)")")
+if [ "$http_code" = "503" ] && [ "${elapsed:-9999}" -lt 1000 ]; then
+  pass "master down PUT 503 <1s (${elapsed}ms)"
 else
-  fail "missing PUT_BLOCKED/DEGRADED in sideweed logs"
+  fail "master down PUT expected 503 <1s, got http=${http_code} elapsed=${elapsed}ms"
+fi
+if wait_log 'PUT_BLOCKED.*write_health_degraded|"Reason":"write_health_degraded"'; then
+  pass "PUT_BLOCKED reason=write_health_degraded"
+else
+  fail "missing PUT_BLOCKED write_health_degraded"
 fi
 if [ -n "$BASELINE_FRAGMENT" ]; then
   if ./scripts/get_fragment.sh "${CAMERA}-baseline" "$BASELINE_FRAGMENT" /tmp/sideweed-get.bin >/dev/null 2>&1; then
@@ -113,45 +114,59 @@ if [ -n "$BASELINE_FRAGMENT" ]; then
   fi
 fi
 compose start master
-sleep 12
+sleep 10
 ./scripts/wait-healthy.sh >/dev/null
 
 log "==> recovery after master up"
 if wait_put_ok; then
-  pass "PUT works again after master recovery"
+  pass "PUT works again after master recovery (200)"
 else
   fail "PUT did not recover after master restart"
 fi
-if wait_log '"Status":"RECOVERED"'; then
-  pass "sideweed log contains RECOVERED"
+if wait_log 'WRITE_RECOVERED|"Status":"WRITE_RECOVERED"'; then
+  pass "WRITE_RECOVERED logged"
 else
-  fail "missing RECOVERED in sideweed logs"
+  fail "missing WRITE_RECOVERED in sideweed logs"
 fi
 
-log "==> all volumes down → PUT blocked"
+log "==> all volumes down → PUT 503 <1s after WRITE_DEGRADED"
 compose stop volume1 volume2
-sleep 8
-read -r http_code elapsed < <(put_s3_http_code "all-vol-down" || echo "fail 0")
-if [ "$http_code" = "503" ]; then
-  pass "all volumes down PUT returns 503"
+if ! wait_write_degraded; then
+  fail "WRITE_DEGRADED not seen after all volumes down"
 else
-  fail "all volumes down PUT expected 503, got ${http_code}"
+  pass "WRITE_DEGRADED logged (all_volumes_down)"
+fi
+read -r http_code elapsed < <(parse_curl_result "$(put_sideweed_raw "all-vol-$(date +%s)")")
+if [ "$http_code" = "503" ] && [ "${elapsed:-9999}" -lt 1000 ]; then
+  pass "all volumes down PUT 503 <1s (${elapsed}ms)"
+else
+  fail "all volumes down PUT expected 503 <1s, got http=${http_code} elapsed=${elapsed}ms"
 fi
 compose start volume1 volume2
-sleep 12
+sleep 10
 ./scripts/wait-healthy.sh >/dev/null
 
-log "==> S3 gateway down → PUT fails fast"
+log "==> S3 gateway down → PUT 503 <1s (not 502)"
 compose stop s3
-sleep 6
-read -r http_code elapsed < <(put_s3_http_code "s3-down" || echo "fail 0")
-if { [ "$http_code" = "503" ] || [ "$http_code" = "502" ]; } && [ "${elapsed:-99999}" -lt 10000 ]; then
-  pass "S3 down PUT fails fast (http=${http_code}, ${elapsed}ms)"
+for _ in $(seq 1 5); do
+  if compose logs sideweed --tail=40 2>&1 | grep -qE 'WRITE_DEGRADED.*s3_down|"Reason":"s3_down"|s3_backend_down|PUT_BLOCKED.*s3_backend_down'; then
+    break
+  fi
+  sleep 1
+done
+read -r http_code elapsed < <(parse_curl_result "$(put_sideweed_raw "s3-down-$(date +%s)")")
+if [ "$http_code" = "503" ] && [ "${elapsed:-9999}" -lt 1000 ]; then
+  pass "S3 down PUT 503 <1s (${elapsed}ms)"
 else
-  fail "S3 down PUT expected 502/503 fast, got http=${http_code} elapsed=${elapsed}ms"
+  fail "S3 down PUT expected 503 <1s, got http=${http_code} elapsed=${elapsed}ms"
+fi
+if wait_log 'PUT_BLOCKED.*s3_backend_down|"Reason":"s3_backend_down"'; then
+  pass "PUT_BLOCKED reason=s3_backend_down"
+else
+  fail "missing PUT_BLOCKED s3_backend_down"
 fi
 compose up -d s3 sideweed
-sleep 15
+sleep 12
 ./scripts/wait-healthy.sh >/dev/null
 
 log ""
