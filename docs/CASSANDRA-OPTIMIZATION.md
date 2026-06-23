@@ -155,6 +155,9 @@ Stand позже может переименовать default `video-fragments`
 
 **Таблица A — video fragments / segments**
 
+Черновик DDL: [cassandra/schema-v2.cql](../cassandra/schema-v2.cql) → `video_fragments_v2` (experimental, не runtime).  
+Подробнее: [CASSANDRA-SCHEMA-V2.md](CASSANDRA-SCHEMA-V2.md).
+
 ```text
 video_archive.fragments_v2
   PK: (camera_id, day_bucket)     -- day_bucket: date или unix_day
@@ -164,6 +167,8 @@ video_archive.fragments_v2
 ```
 
 **Таблица B — snapshots**
+
+Черновик DDL: [cassandra/schema-v2.cql](../cassandra/schema-v2.cql) → `snapshots_v2` (experimental, не runtime).
 
 ```text
 video_archive.snapshots
@@ -335,7 +340,7 @@ else:
 
 | Item | Описание |
 |------|----------|
-| `cassandra/schema-v2.cql` | TWCS + `fragments_v2` + `snapshots` (не подменять `schema.cql` до согласования) |
+| `cassandra/schema-v2.cql` | **Добавлен (experimental draft):** TWCS + `video_fragments_v2` + `snapshots_v2`; не подменяет `schema.cql`, не в `cql-init` — см. [CASSANDRA-SCHEMA-V2.md](CASSANDRA-SCHEMA-V2.md) |
 | `scripts/get_snapshot.sh` | GET из `csb` по snapshot_id |
 | Range query API | Go или script: camera + `[t0, t1]` (новый пакет, не ломая текущий `Store`) |
 | Rename bucket default | `video-fragments` → `vab` с env override для совместимости |
@@ -374,8 +379,8 @@ else:
 |-------|----------------|--------------|-----------------|-------------|------------|
 | **5.1 Bucket separation** | Частично | S3: `csb` для snapshots; archive на `video-fragments` | Bucket `vab`; metadata split; legacy `vab` mixed data | Согласовать имена buckets; dual-uri read | Customer: текущая layout `vab` |
 | **5.2 Snapshot pipeline** | Частично | `put_snapshot.sh` → sideweed → S3 `csb` | streamserver/backend/LB configs; read path snapshots; metadata в отдельном store | Получить production pipeline diagram | Customer configs |
-| **5.3 Cassandra compaction** | Не сделано (proposal only) | Минимальная schema в stand (default STCS) | TWCS/TTL/tuning не применены; production analysis | `tablestats` + design review | Production DDL + metrics |
-| **5.4 Backward compatibility** | Не сделано (requires production DDL) | Stand не ломает локальный архив | Dual read/write, migration, rollback не реализованы | Phased plan после DDL | Customer data volume + SLA |
+| **5.3 Cassandra compaction** | Не сделано в runtime (experimental draft готов) | Минимальная schema в stand (default STCS); **draft** `schema-v2.cql` с TWCS | TWCS/TTL не в runtime; production tuning | Применить v2 в dev profile + `tablestats` | Production DDL + metrics |
+| **5.4 Backward compatibility** | Не сделано (requires production DDL) | Stand не ломает локальный архив; dual-read описан в design + v2 comments | Dual read/write, migration job не реализованы | Phased plan после DDL | Customer data volume + SLA |
 
 ---
 
