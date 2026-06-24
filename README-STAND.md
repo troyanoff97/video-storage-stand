@@ -86,6 +86,7 @@ SeaweedFS — **внешний customer fork** (не submodule). Pin: [docs/SEAW
 
 ## Документация
 
+- [CASSANDRA-TASK-STATUS.md](docs/CASSANDRA-TASK-STATUS.md) — статус Задачи №2 (Cassandra §5)
 - [STAND-TESTING.md](docs/STAND-TESTING.md)
 - [TZ-DEVIATIONS.md](docs/TZ-DEVIATIONS.md)
 - [PRODUCTION-DEPLOY.md](docs/PRODUCTION-DEPLOY.md)

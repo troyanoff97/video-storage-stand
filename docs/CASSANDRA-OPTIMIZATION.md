@@ -4,7 +4,7 @@
 Это **design proposal** — не применять DDL и runtime без production DDL и согласования с заказчиком.
 
 **Stand repo:** `git@github.com:troyanoff97/video-storage-stand.git`  
-**Связанные документы:** [TZ-DEVIATIONS.md](TZ-DEVIATIONS.md), [PRODUCTION-DEPLOY.md](PRODUCTION-DEPLOY.md)
+**Связанные документы:** [TZ-DEVIATIONS.md](TZ-DEVIATIONS.md), [PRODUCTION-DEPLOY.md](PRODUCTION-DEPLOY.md), [CASSANDRA-TASK-STATUS.md](CASSANDRA-TASK-STATUS.md) (краткий статус §5)
 
 ---
 
