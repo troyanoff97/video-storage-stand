@@ -52,6 +52,8 @@ Snapshots: тот же write path, bucket csb
 
 Проверка через **production S3 path**: `make chaos-multi-dir`.
 
+Полный acceptance на физическом диске: [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) (ТЗ §4.2–4.5; Docker chaos — WARN/SKIP на tmpfs).
+
 Pin fork: [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md).
 
 ## Sideweed

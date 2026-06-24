@@ -115,7 +115,8 @@ make chaos-multi-dir   # отказ /data1 → PUT на /data2
 ```
 
 Customer private fork: [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md).  
-Production (bare metal): [PRODUCTION-DEPLOY.md](PRODUCTION-DEPLOY.md).
+Production (bare metal): [PRODUCTION-DEPLOY.md](PRODUCTION-DEPLOY.md).  
+**Disk fault acceptance runbook:** [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) (ТЗ §4.2–4.5).
 
 ## Ограничения
 
