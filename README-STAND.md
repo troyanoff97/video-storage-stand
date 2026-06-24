@@ -63,6 +63,9 @@ SeaweedFS — **внешний customer fork** (не submodule). Pin: [docs/SEAW
 # Production GET (фрагменты архива)
 ./scripts/get_fragment.sh camera-1 <uuid>
 
+# Список фрагментов по времени (metadata only)
+./scripts/list_fragments.sh camera-1 2026-06-24T00:00:00Z 2026-06-24T23:59:59Z
+
 # Только debug
 ./scripts/debug/put_fragment_direct.sh /tmp/file.bin camera-debug
 ```
@@ -73,6 +76,7 @@ SeaweedFS — **внешний customer fork** (не submodule). Pin: [docs/SEAW
 |--------|----------|
 | `make test` | Smoke: production PUT + GET (archive) |
 | `make test-snapshot` | Smoke: snapshot PUT + GET via bucket csb |
+| `make test-range-query` | Smoke: Cassandra list by camera + time range |
 | `make check-seaweedfs` | Проверка SeaweedFS fork на pin `1528e7d` |
 | `make init-seaweedfs` | Клон customer fork (`SEAWEEDFS_REPO_URL`) |
 | `make test-sideweed` | Write gate sideweed при деградации |

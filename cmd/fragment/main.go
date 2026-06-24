@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -23,6 +24,8 @@ func main() {
 		os.Exit(cmdPut(os.Args[2:]))
 	case "get":
 		os.Exit(cmdGet(os.Args[2:]))
+	case "list":
+		os.Exit(cmdList(os.Args[2:]))
 	default:
 		usage()
 		os.Exit(2)
@@ -33,6 +36,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `Usage:
   fragment put <file> <camera_id> [--data-center dc1] [--direct-volume]
   fragment get <camera_id> <fragment_uuid>
+  fragment list <camera_id> <from_rfc3339> <to_rfc3339> [limit]
 
 Environment (production S3 path):
   SIDEWEED_URL      write entry (default http://localhost:8880)
@@ -126,6 +130,59 @@ func cmdPut(args []string) int {
 	fmt.Printf("  fragment_id: %s\n", frag.FragmentID)
 	fmt.Printf("  seaweed_fid: %s\n", frag.SeaweedFID)
 	fmt.Printf("  size:        %d\n", frag.Size)
+	return 0
+}
+
+func cmdList(args []string) int {
+	if len(args) < 3 {
+		fmt.Fprintln(os.Stderr, "list requires <camera_id> <from_rfc3339> <to_rfc3339> [limit]")
+		return 2
+	}
+
+	from, err := time.Parse(time.RFC3339, args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "parse from time: %v\n", err)
+		return 2
+	}
+	to, err := time.Parse(time.RFC3339, args[2])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "parse to time: %v\n", err)
+		return 2
+	}
+
+	limit := 100
+	if len(args) >= 4 {
+		limit, err = strconv.Atoi(args[3])
+		if err != nil || limit <= 0 {
+			fmt.Fprintln(os.Stderr, "limit must be a positive integer")
+			return 2
+		}
+	}
+
+	u, err := newUploader("", false)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "init: %v\n", err)
+		return 1
+	}
+	defer u.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	frags, err := u.ListFragmentsByTimeRange(ctx, args[0], from, to, limit)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "list: %v\n", err)
+		return 1
+	}
+
+	for _, f := range frags {
+		fmt.Printf("%s %s %d %s\n",
+			f.FragmentID,
+			f.SeaweedFID,
+			f.Size,
+			f.CreatedAt.UTC().Format(time.RFC3339),
+		)
+	}
 	return 0
 }
 

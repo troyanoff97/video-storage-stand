@@ -11,9 +11,9 @@ import (
 
 // Config for the combined fragment store.
 type Config struct {
-	Seaweed   SeaweedConfig
-	S3        S3Config
-	Cassandra CassandraConfig
+	Seaweed            SeaweedConfig
+	S3                 S3Config
+	Cassandra          CassandraConfig
 	UseDirectVolumePut bool
 }
 
@@ -111,6 +111,10 @@ func (u *Uploader) putDirect(ctx context.Context, cameraID string, fragID gocql.
 		return Fragment{}, fmt.Errorf("verify size mismatch: got %d want %d", len(got), frag.Size)
 	}
 	return frag, nil
+}
+
+func (u *Uploader) ListFragmentsByTimeRange(ctx context.Context, cameraID string, from, to time.Time, limit int) ([]Fragment, error) {
+	return u.cassandra.ListFragmentsByTimeRange(ctx, cameraID, from, to, limit)
 }
 
 func (u *Uploader) Get(ctx context.Context, cameraID string, fragmentID gocql.UUID) ([]byte, Fragment, error) {

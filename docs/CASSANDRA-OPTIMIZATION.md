@@ -56,7 +56,13 @@ Go-клиент (`pkg/fragment/cassandra.go`): consistency `Quorum`, тольк�
 1. `SELECT ... WHERE camera_id = ? AND fragment_id = ?`
 2. Blob по `seaweed_fid` (bucket из URI) через read path (HAProxy → S3)
 
-Range-query по времени и записи metadata через filer **нет**.
+**LIST fragments by time** (`scripts/list_fragments.sh` → `fragment list`):
+
+1. `SELECT ... WHERE camera_id = ? AND fragment_id >= MinTimeUUID(from) AND fragment_id <= MaxTimeUUID(to) LIMIT ?`
+2. Stand smoke: `make test-range-query` (не в `make test`)
+3. На текущей schema — timeuuid bounds внутри одной партиции `camera_id`; для production масштаба нужен `time_bucket` / `schema-v2`
+
+Range-query по времени и записи metadata через filer **нет** (кроме stand list выше).
 
 ### 1.3 Buckets (stand vs ТЗ)
 
@@ -349,9 +355,10 @@ else:
 |------|----------|
 | `cassandra/schema-v2.cql` | **Добавлен (experimental draft):** TWCS + `video_fragments_v2` + `snapshots_v2`; не подменяет `schema.cql`, не в `cql-init` — см. [CASSANDRA-SCHEMA-V2.md](CASSANDRA-SCHEMA-V2.md) |
 | `scripts/get_snapshot.sh` | **Добавлен:** GET из `csb` по `snapshot_id` + `fragment_id`; smoke `make test-snapshot` |
-| Range query API | Go или script: camera + `[t0, t1]` (новый пакет, не ломая текущий `Store`) |
+| `scripts/list_fragments.sh` | **Добавлен:** LIST по `camera_id` + RFC3339 range на runtime `fragments`; smoke `make test-range-query` |
+| Range query API | Go `fragment list` + script (stand); production scale → `time_bucket` / `schema-v2` |
 | Rename bucket default | `video-fragments` → `vab` с env override для совместимости |
-| Tests | archive PUT/GET (`make test`); snapshot PUT/GET (`make test-snapshot`); range query smoke |
+| Tests | archive PUT/GET (`make test`); snapshot PUT/GET (`make test-snapshot`); range list (`make test-range-query`) |
 | Load model doc | rows/partition, write rate, disk 3y |
 | Benchmark compose profile | отдельный profile, не менять default `make up` |
 
@@ -386,7 +393,7 @@ else:
 |-------|----------------|--------------|-----------------|-------------|------------|
 | **5.1 Bucket separation** | Частично | S3: `csb` для snapshots; archive на `video-fragments` | Bucket `vab`; metadata split; legacy `vab` mixed data | Согласовать имена buckets; dual-uri read | Customer: текущая layout `vab` |
 | **5.2 Snapshot pipeline** | Частично (stand blob read/write) | `put_snapshot.sh` + `get_snapshot.sh` → sideweed/S3 `csb`; `make test-snapshot` | streamserver/backend/LB configs; metadata в отдельном store (`snapshots_v2` draft only) | Получить production pipeline diagram | Customer configs |
-| **5.3 Cassandra compaction** | Не сделано в runtime (experimental draft готов) | Минимальная schema в stand (default STCS); **draft** `schema-v2.cql` с TWCS | TWCS/TTL не в runtime; production tuning | Применить v2 в dev profile + `tablestats` | Production DDL + metrics |
+| **5.3 Cassandra compaction** | Не сделано в runtime (experimental draft готов) | Минимальная schema в stand (default STCS); **draft** `schema-v2.cql` с TWCS; stand range-list на v1 schema | TWCS/TTL не в runtime; wide partitions at scale | Применить v2 в dev profile + `tablestats` | Production DDL + metrics |
 | **5.4 Backward compatibility** | Не сделано (requires production DDL) | Stand не ломает локальный архив; dual-read описан в design + v2 comments | Dual read/write, migration job не реализованы | Phased plan после DDL | Customer data volume + SLA |
 
 ---
@@ -413,7 +420,7 @@ Stand schema — **упрощение для тестов**; production metadata
 **Что можно прототипировать позже в stand (безопасно):**
 
 - `schema-v2.cql` + experimental profile;
-- range queries, benchmarks;
+- benchmarks;
 - документация и тесты — **без** замены production configs до sign-off.
 
 ---

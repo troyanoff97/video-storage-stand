@@ -8,7 +8,7 @@ GO := go
 	chaos-volume-down chaos-volume-up chaos-master-down chaos-master-up \
 	chaos-mount-unavailable chaos-disk-full chaos-disk-readonly chaos-reset \
 	chaos-matrix chaos-recovery chaos-recovery-disk chaos-multi-dir put-v1 up-multi-dir up-persist \
-	test-sideweed test-snapshot
+	test-sideweed test-snapshot test-range-query
 
 help:
 	@echo "Targets:"
@@ -26,6 +26,7 @@ help:
 	@echo "  put-v1               DEBUG: direct volume PUT (scripts/debug/)"
 	@echo "  put-snapshot         PUT snapshot to bucket csb (production path)"
 	@echo "  test-snapshot        smoke: snapshot PUT + GET via bucket csb"
+	@echo "  test-range-query     smoke: Cassandra list by camera + time range"
 	@echo "  verify-path          prove PUT goes sideweed → S3"
 	@echo "  test-sideweed        sideweed write degradation gate (PUT block / recovery)"
 	@echo "  chaos-matrix         run fault scenarios and save results"
@@ -95,6 +96,10 @@ put-snapshot: test-file
 test-snapshot: check-seaweedfs build-cli health
 	chmod +x ./scripts/get_snapshot.sh ./scripts/test_snapshot.sh
 	./scripts/test_snapshot.sh
+
+test-range-query: check-seaweedfs build-cli health
+	chmod +x ./scripts/list_fragments.sh ./scripts/test_range_query.sh
+	./scripts/test_range_query.sh
 
 verify-path: check-seaweedfs test-file build-cli health
 	./scripts/verify_production_path.sh $(TEST_FILE)
