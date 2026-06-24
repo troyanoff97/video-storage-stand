@@ -85,7 +85,7 @@
 
 | Пункт | Статус | Что сделано | Подтверждение | Что осталось | Блокер |
 |-------|--------|-------------|---------------|--------------|--------|
-| **6.1 Health checks** | **Partial** | Write probes (S3, filer, master, assign); `GET /v1/write-health`; **filer-down** in `make test-sideweed` | [sideweed-health.md](sideweed-health.md), `make test-sideweed` | Direct per-volume probes; multi-master list; prod multi-S3-GW | — |
+| **6.1 Health checks** | **Partial** | Write probes; `/v1/write-health`; filer-down + **single/all volume** assign behavior in `test-sideweed` | [sideweed-health.md](sideweed-health.md), `make test-sideweed` | Direct per-volume probes; multi-master list; prod multi-S3-GW | — |
 | **6.2 PUT blocking** | **Done** | 503 fail-fast `PUT_BLOCKED` / `write_health_degraded` | `make test-sideweed`, commit `1d9e0f0`, `77eea5c` | — | — |
 | **6.3 Automatic recovery** | **Done** | PUT OK after master/S3/volumes recovery; `WRITE_RECOVERED` | `make test-sideweed` recovery scenarios | Long soak / prod soak | — |
 | **6.4 Logging / alerting** | **Partial** | JSON logs; Phase 1 `/metrics`; Phase 2 sample Prometheus scrape + alert rules | [sideweed-health.md](sideweed-health.md); [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md); [observability/](../observability/); `make test-sideweed` | Alertmanager delivery, webhook/Slack, prod monitoring stack | Customer monitoring stack |

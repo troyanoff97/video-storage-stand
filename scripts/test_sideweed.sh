@@ -263,6 +263,44 @@ compose start volume1 volume2
 sleep 10
 ./scripts/wait-healthy.sh >/dev/null
 
+log "==> single volume down keeps write path healthy (volume2 writable)"
+sideweed_log_checkpoint
+if ! wait_for_write_health 200 healthy 15 >/dev/null; then
+  fail "pre-check: /v1/write-health not healthy before single volume down"
+fi
+compose stop volume1
+# Write probes every 3s; allow at least one full interval after fault.
+sleep 5
+sideweed_log_checkpoint
+if wait_for_write_health 200 healthy 15 >/dev/null; then
+  pass "GET /v1/write-health 200 status=healthy (volume1 down, volume2 up)"
+else
+  fail "/v1/write-health degraded with only volume1 down (expected healthy)"
+  write_health_fetch | sed '$d' | head -c 400
+  log ""
+fi
+single_vol_out=$(put_s3 "single-volume-down" || true)
+if echo "$single_vol_out" | grep -q SUCCESS; then
+  pass "PUT 200 via sideweed with volume1 down (assign on volume2)"
+else
+  fail "PUT failed with volume1 down (expected 200 when volume2 writable)"
+  echo "$single_vol_out"
+fi
+if sideweed_logs_since_checkpoint | grep 'PUT_BLOCKED' | grep -q 'single-volume-down'; then
+  fail "PUT_BLOCKED logged for single-volume-down PUT (expected none)"
+  dump_sideweed_logs
+else
+  pass "no PUT_BLOCKED for single-volume-down PUT (write path healthy)"
+fi
+compose start volume1
+sleep 10
+./scripts/wait-healthy.sh >/dev/null
+if wait_for_write_health 200 healthy 15 >/dev/null; then
+  pass "GET /v1/write-health healthy after volume1 recovery"
+else
+  fail "/v1/write-health not healthy after volume1 recovery"
+fi
+
 log "==> filer down → WRITE_DEGRADED + PUT 503 <1s"
 sideweed_log_checkpoint
 compose stop filer

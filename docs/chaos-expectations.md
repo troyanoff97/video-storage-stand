@@ -59,7 +59,7 @@ Read sideweed (`sideweed-read`) **без** write gate.
 
 ### Почему такие ожидания
 
-- **volume1 down:** При `replication=000` и здоровом volume2 S3 может выделить место на volume2 — успешный PUT корректное HA-поведение, не отказ.
+- **volume1 down:** При `replication=000` и здоровом volume2 S3 может выделить место на volume2 — успешный PUT корректное HA-поведение, не отказ. Подтверждено: `make chaos-matrix` #1 и `make test-sideweed` (single volume down → `/v1/write-health` healthy, PUT 200).
 - **master down:** Новые записи требуют master assign → PUT должен падать. GET уже сохранённого объекта может работать через filer/S3/volumes без master.
 - **sideweed down:** Write entrypoint недоступен → PUT падает. Read идёт через HAProxy → sideweed-read → S3 → не затронут.
 - **disk faults:** Если tmpfs remount/fill не применился, matrix пишет **WARN** + **SKIP** вместо ложного PASS/FAIL.

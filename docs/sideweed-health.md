@@ -120,6 +120,20 @@ curl -fsS http://localhost:8880/metrics | grep sideweed_write_health_status
 
 Подробнее: [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) (Phase 1 implemented; Alertmanager rules — proposal).
 
+## Aggregate write readiness (volume nodes)
+
+Sideweed оценивает **возможность записи на кластер в целом**, а не health каждого volume node напрямую.
+
+| Сигнал | Механизм |
+|--------|----------|
+| Writable capacity | Probe `assign` → `master /dir/assign` (HTTP 200 = есть writable volume) |
+| All volumes lost | `assign` → 406 → `all_volumes_down` → PUT blocked |
+| **Single volume down** | Если другой volume writable, `assign` остаётся **200** → write path **healthy**, PUT **не** блокируется |
+
+На стенде (`replication=000`, volume1 + volume2): `compose stop volume1` при живом volume2 — **ожидаемо** `GET /v1/write-health` **200**, PUT **200**. Покрыто `make test-sideweed` (сценарий *single volume down*).
+
+Direct per-volume `/healthz` probes **не** входят в production write sideweed (debug: `sideweed-volumes` profile).
+
 ## Тестирование
 
 ```bash
