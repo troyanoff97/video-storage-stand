@@ -91,7 +91,7 @@
 | **6.1 Health checks** | **Done** | Write path: S3, filer, master, assign probe | [sideweed-health.md](sideweed-health.md), `make test-sideweed` | Multi-S3-GW prod topology | — |
 | **6.2 PUT blocking** | **Done** | 503 fail-fast `PUT_BLOCKED` / `write_health_degraded` | `make test-sideweed`, commit `1d9e0f0`, `77eea5c` | — | — |
 | **6.3 Automatic recovery** | **Done** | PUT OK after master/S3/volumes recovery; `WRITE_RECOVERED` | `make test-sideweed` recovery scenarios | Long soak / prod soak | — |
-| **6.4 Logging / alerting** | **Partial** | JSON logs (`WRITE_DEGRADED`, `PUT_BLOCKED`, `WRITE_RECOVERED`); alerting **proposal only** | [sideweed-health.md](sideweed-health.md); [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) | Metrics `/metrics`, Alertmanager rules, prod delivery | Customer monitoring stack |
+| **6.4 Logging / alerting** | **Partial** | JSON logs; **Phase 1** Prometheus `/metrics` (write health gauges/counters) | [sideweed-health.md](sideweed-health.md); [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md); `make test-sideweed` | Alertmanager rules, webhook/Slack delivery, prod monitoring stack | Customer monitoring stack |
 
 ---
 
@@ -126,7 +126,7 @@
 - **No streamserver / backend / LB** production configs для snapshots/archive.
 - **Archive bucket** на stand: `video-fragments`, не ТЗ `vab`.
 - **Metadata** archive + snapshots в одной runtime table `fragments`.
-- **No alerting integration** на stand — design: [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) (proposal, не runtime)
+- **No alert delivery** на stand — metrics scrapeable; rules/delivery: [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) (proposal)
 - **No production rollout** — только local/dev stand.
 - **Latest 8 commits not pushed** to `origin/main`.
 - **Cassandra §5.3 compaction** и **§5.4 migration** не в runtime.

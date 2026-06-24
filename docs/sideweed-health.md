@@ -78,6 +78,23 @@ Probes выполняются **параллельно** с коротким tim
 
 `GET`, `HEAD` проксируются нормально, если S3 upstream UP; иначе 502.
 
+## Prometheus metrics
+
+Write sideweed экспортирует Prometheus metrics на:
+
+- `GET /metrics` (основной endpoint)
+- `GET /.prometheus/metrics` (legacy, тот же handler)
+
+Пример:
+
+```bash
+curl -fsS http://localhost:8880/metrics | grep sideweed_write_health_status
+```
+
+Ключевые метрики write gate: `sideweed_write_health_status`, `sideweed_write_degraded_total{reason}`, `sideweed_write_recovered_total`, `sideweed_put_blocked_total{reason}`, `sideweed_backend_up{backend}`, `sideweed_health_probe_duration_seconds`.
+
+Подробнее: [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) (Phase 1 implemented; Alertmanager rules — proposal).
+
 ## Тестирование
 
 ```bash

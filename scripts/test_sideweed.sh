@@ -151,6 +151,13 @@ else
   echo "$baseline_out"
 fi
 
+log "==> Prometheus /metrics"
+if curl -fsS "${SIDEWEED_URL}/metrics" | grep -q 'sideweed_write_health_status'; then
+  pass "GET /metrics exposes sideweed_write_health_status"
+else
+  fail "GET /metrics missing sideweed_write_health_status"
+fi
+
 log "==> master down → WRITE_DEGRADED + PUT 503 <1s"
 sideweed_log_checkpoint
 compose stop master
