@@ -98,7 +98,9 @@ Stand schema **нельзя** считать production schema без подтв
 - поиск сегментов по camera / time range
 
 **Строк на камеру за 3 года:**  
-`3 × 365 × 24 × 3600 / 20 ≈ 4.7×10⁶` fragments/camera
+`3 × 365 × 24 × 3600 / 20 ≈ 4.7×10⁶` fragments/camera  
+
+Подробные расчёты, сравнение time buckets и оценка диска: [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md).
 
 **Partition key = `camera_id`** → одна партиция на камеру растёт до миллионов строк. Риски:
 
@@ -359,7 +361,7 @@ else:
 | Range query API | Go `fragment list` + script (stand); production scale → `time_bucket` / `schema-v2` |
 | Rename bucket default | `video-fragments` → `vab` с env override для совместимости |
 | Tests | archive PUT/GET (`make test`); snapshot PUT/GET (`make test-snapshot`); range list (`make test-range-query`) |
-| Load model doc | rows/partition, write rate, disk 3y |
+| Load model doc | [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md) — rows/partition, 3y volume, bucket comparison |
 | Benchmark compose profile | отдельный profile, не менять default `make up` |
 
 Всё выше — **после** отдельного промпта и без push в production configs заказчика.
@@ -420,7 +422,7 @@ Stand schema — **упрощение для тестов**; production metadata
 **Что можно прототипировать позже в stand (безопасно):**
 
 - `schema-v2.cql` + experimental profile;
-- benchmarks;
+- benchmarks (после load model: [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md));
 - документация и тесты — **без** замены production configs до sign-off.
 
 ---
