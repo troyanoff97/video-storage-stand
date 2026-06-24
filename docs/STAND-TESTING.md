@@ -7,6 +7,7 @@ make up
 make health
 make test              # PUT sideweed→S3, GET HAProxy→S3
 make test-go
+make test-snapshot     # snapshot PUT + GET через bucket csb (отдельный smoke)
 make test-sideweed     # блокировка PUT при unhealthy master/volumes/S3
 ./scripts/verify_production_path.sh   # доказательство по логам
 ```
@@ -19,8 +20,12 @@ make test-sideweed     # блокировка PUT при unhealthy master/volume
 
 # Запись снимка: тот же path, bucket csb
 ./scripts/put_snapshot.sh /tmp/snap.bin snapshot-1
+# Вывод: camera_id (= snapshot_id), fragment_id, seaweed_fid s3://csb/...
 
-# Чтение: HAProxy → sideweed-read → S3
+# Чтение снимка: HAProxy → sideweed-read → S3 bucket csb
+./scripts/get_snapshot.sh snapshot-1 <fragment_uuid> /tmp/snap-out.bin
+
+# Чтение фрагмента архива: bucket video-fragments
 ./scripts/get_fragment.sh camera-1 <fragment_uuid>
 ```
 
@@ -28,7 +33,8 @@ make test-sideweed     # блокировка PUT при unhealthy master/volume
 
 | Target | Path |
 |--------|------|
-| `make test` | Production PUT + GET |
+| `make test` | Production PUT + GET (archive, bucket video-fragments) |
+| `make test-snapshot` | Snapshot PUT + GET (bucket csb); metadata в `fragments`, schema-v2 не runtime |
 | `make test-sideweed` | Write gate sideweed: PUT 503 при деградации кластера |
 | `make chaos-multi-dir` | Отказ /data1 через S3 PUT |
 | `make chaos-matrix` | Матрица отказов через S3 PUT |

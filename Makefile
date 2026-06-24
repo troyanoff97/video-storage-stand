@@ -8,7 +8,7 @@ GO := go
 	chaos-volume-down chaos-volume-up chaos-master-down chaos-master-up \
 	chaos-mount-unavailable chaos-disk-full chaos-disk-readonly chaos-reset \
 	chaos-matrix chaos-recovery chaos-recovery-disk chaos-multi-dir put-v1 up-multi-dir up-persist \
-	test-sideweed
+	test-sideweed test-snapshot
 
 help:
 	@echo "Targets:"
@@ -25,6 +25,7 @@ help:
 	@echo "  build-cli            build cmd/fragment binary"
 	@echo "  put-v1               DEBUG: direct volume PUT (scripts/debug/)"
 	@echo "  put-snapshot         PUT snapshot to bucket csb (production path)"
+	@echo "  test-snapshot        smoke: snapshot PUT + GET via bucket csb"
 	@echo "  verify-path          prove PUT goes sideweed → S3"
 	@echo "  test-sideweed        sideweed write degradation gate (PUT block / recovery)"
 	@echo "  chaos-matrix         run fault scenarios and save results"
@@ -90,6 +91,10 @@ put-v1: test-file
 
 put-snapshot: test-file
 	./scripts/put_snapshot.sh $(TEST_FILE) snapshot-manual
+
+test-snapshot: check-seaweedfs build-cli health
+	chmod +x ./scripts/get_snapshot.sh ./scripts/test_snapshot.sh
+	./scripts/test_snapshot.sh
 
 verify-path: check-seaweedfs test-file build-cli health
 	./scripts/verify_production_path.sh $(TEST_FILE)

@@ -57,7 +57,10 @@ SeaweedFS — **внешний customer fork** (не submodule). Pin: [docs/SEAW
 # Production PUT (снимки → bucket csb)
 ./scripts/put_snapshot.sh /tmp/snap.bin snap-1
 
-# Production GET
+# Production GET (снимки → bucket csb)
+./scripts/get_snapshot.sh snap-1 <fragment_uuid> /tmp/snap-out.bin
+
+# Production GET (фрагменты архива)
 ./scripts/get_fragment.sh camera-1 <uuid>
 
 # Только debug
@@ -68,7 +71,8 @@ SeaweedFS — **внешний customer fork** (не submodule). Pin: [docs/SEAW
 
 | Target | Описание |
 |--------|----------|
-| `make test` | Smoke: production PUT + GET |
+| `make test` | Smoke: production PUT + GET (archive) |
+| `make test-snapshot` | Smoke: snapshot PUT + GET via bucket csb |
 | `make check-seaweedfs` | Проверка SeaweedFS fork на pin `1528e7d` |
 | `make init-seaweedfs` | Клон customer fork (`SEAWEEDFS_REPO_URL`) |
 | `make test-sideweed` | Write gate sideweed при деградации |
