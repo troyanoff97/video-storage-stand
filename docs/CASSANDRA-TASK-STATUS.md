@@ -3,7 +3,8 @@
 Краткий статус работ по ТЗ §5 без production DDL от заказчика.  
 Подробный design: [CASSANDRA-OPTIMIZATION.md](CASSANDRA-OPTIMIZATION.md).  
 Experimental schema v2: [CASSANDRA-SCHEMA-V2.md](CASSANDRA-SCHEMA-V2.md).  
-Load/capacity model: [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md).
+Load/capacity model: [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md).  
+Customer data checklist (internal): [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md).
 
 **Последнее обновление:** stand @ `4e2e0b6` (локально, без push).
 
@@ -88,10 +89,10 @@ Runtime по-прежнему: `cassandra/schema.cql` → таблица `fragme
 
 ## 6. Next recommended steps
 
-1. **Получить от заказчика:** production DDL, CQL/API query patterns, `nodetool tablestats`, pipeline snapshots (§8 чеклист в [CASSANDRA-OPTIMIZATION.md](CASSANDRA-OPTIMIZATION.md)).
+1. **Получить от заказчика:** см. внутренний [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) (DDL, query patterns, metrics, pipeline); также §8 [CASSANDRA-OPTIMIZATION.md](CASSANDRA-OPTIMIZATION.md).
 2. **Dev-only:** compose profile для ручного apply `schema-v2.cql` (без замены `schema.cql`).
 3. **Load model / benchmark:** [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md) (rows/partition, 3y volume); при необходимости — benchmark profile.
-4. **Customer questions:** финализировать чеклист §8 design doc и отправить заказчику.
+4. **Customer questions:** checklist готов — [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md); перед внешним запросом — ревью формулировок.
 
 До sign-off с заказчиком: **не push** production configs и **не подменять** runtime schema.
 
