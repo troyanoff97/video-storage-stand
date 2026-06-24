@@ -12,7 +12,7 @@
 | **Not done** | Не реализовано |
 | **Blocked** | Требуются данные/среда заказчика или bare-metal |
 
-**Последнее обновление:** stand @ `b8af400`, branch **ahead 8** (push не выполнялся).
+**Последнее обновление:** stand @ `77bd2cd`, branch **ahead 12** (push не выполнялся). Push readiness: [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md) (metrics batch).
 
 ---
 
@@ -29,7 +29,7 @@
 
 | Область | Статус |
 |---------|--------|
-| Fresh clone | Ранее **PASS** (`video-storage-stand-final`, acceptance matrix) |
+| Fresh clone | Ранее **PASS**; **сейчас** remote-only clone неполон до push sideweed `7eadd37` + root (см. [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)) |
 | Reproducibility | `make init-seaweedfs`, `make check-seaweedfs` (pin **`1528e7d`**) |
 | Root repo | `github.com/troyanoff97/video-storage-stand` |
 | SeaweedFS fork | `git@github.com:troyanoff97/seaweedfs.git`, branch `feat/volume-disk-health-isolation` |
@@ -43,14 +43,11 @@
 | `go test ./...` | PASS |
 | `make test` | PASS |
 | `make verify-path` | PASS |
-| `make test-sideweed` | PASS (12/12; ранее 1 transient baseline flake, retry OK) |
+| `make test-sideweed` | PASS (13/13; metrics check included) |
 | `make test-snapshot` | PASS |
 | `make test-range-query` | PASS |
 
-**Push:** последние 8 локальных commits (Cassandra + bare-metal plan) **не pushed** к `origin/main`.
-
-**Локальные commits ahead (Cassandra + SeaweedFS plan):**  
-`3cc7c96` … `b8af400` (см. `git log origin/main..HEAD`).
+**Push:** последние **12** локальных commits **не pushed** к `origin/main`. Порядок и fresh-clone plan: [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md) — push **не выполнялся**.
 
 ---
 
@@ -128,7 +125,7 @@
 - **Metadata** archive + snapshots в одной runtime table `fragments`.
 - **No alert delivery** на stand — metrics scrapeable; sample rules in `observability/`; delivery: [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md)
 - **No production rollout** — только local/dev stand.
-- **Latest 8 commits not pushed** to `origin/main`.
+- **Latest 12 commits not pushed** to `origin/main`; push readiness documented in [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md), push not performed
 - **Cassandra §5.3 compaction** и **§5.4 migration** не в runtime.
 - **Bare-metal disk test plan** — документ готов, **прогон не зафиксирован** в этом status.
 
@@ -138,8 +135,8 @@
 
 | Приоритет | Действие |
 |-----------|----------|
-| **A** | **Push policy** — решить, пушить ли ahead 8 commits (см. [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)); без заказчика — можно держать локально |
-| **B** | **Локально:** Phase 1 metrics в sideweed fork по [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) (после согласования) |
+| **A** | **Push policy** — при необходимости: sideweed `7eadd37` first, then root (см. [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)); без заказчика — держать локально |
+| **B** | **Alerting delivery** — Alertmanager/webhook в prod stack (metrics + sample rules готовы) |
 | **C** | **Production validation Cassandra:** запросить данные по [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) |
 | **D** | **Закрытие SeaweedFS §4:** выполнить [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) на test host |
 | **E** | **Внешний отчёт:** сократить этот документ + [CASSANDRA-TASK-STATUS.md](CASSANDRA-TASK-STATUS.md) для заказчика (после ревью) |
