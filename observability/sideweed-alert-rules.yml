@@ -1,0 +1,126 @@
+# Sample Prometheus alert rules for sideweed write gate metrics (reference only).
+# NOT applied by the stand runtime — merge into production Prometheus/Alertmanager.
+#
+# Validate:
+#   promtool check rules observability/sideweed-alert-rules.yml
+#
+# Thresholds are conservative starting points; tune per environment and traffic.
+
+groups:
+  - name: sideweed-write
+    rules:
+      # Write path degraded (gauge 0). Escalate to critical after ~5m in production if needed.
+      - alert: SideweedWriteHealthDegraded
+        expr: sideweed_write_health_status == 0
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "sideweed write path degraded"
+          description: >-
+            sideweed_write_health_status is 0 for at least 30s. Mutating requests
+            (PUT/POST/DELETE) may be blocked with 503.
+          runbook: >-
+            Check SeaweedFS master, volumes, filer, S3 gateway. See docs/sideweed-health.md;
+            reproduce with make test-sideweed. Tune: consider severity=critical when for>5m.
+
+      # Any blocked PUT activity (low threshold — informational/warning).
+      # May fire during planned chaos tests; silence or raise threshold in prod.
+      - alert: SideweedPutBlocked
+        expr: increase(sideweed_put_blocked_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "sideweed blocked mutating requests"
+          description: >-
+            sideweed_put_blocked_total increased in the last 5m (reason label on metric).
+            Clients receive 503 fail-fast on write path.
+          runbook: >-
+            Inspect sideweed logs for PUT_BLOCKED reason; correlate with
+            sideweed_write_degraded_total{reason}. See docs/sideweed-health.md.
+
+      # Sustained high block rate — tune threshold to expected write QPS.
+      - alert: SideweedPutBlockedHighRate
+        expr: sum(rate(sideweed_put_blocked_total[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "high rate of sideweed blocked writes"
+          description: >-
+            Blocked write rate exceeds 0.5/s (sum across reasons). Check for client
+            retry storms or prolonged cluster degradation.
+          runbook: >-
+            Split by reason: rate(sideweed_put_blocked_total[5m]). Tune threshold
+            (e.g. 10/s) for production traffic.
+
+      # Any backend marked down. Label is stable host from endpoint (e.g. s3:8333 on stand).
+      - alert: SideweedBackendDown
+        expr: sideweed_backend_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "sideweed S3 backend down ({{ $labels.backend }})"
+          description: >-
+            sideweed_backend_up is 0 for backend {{ $labels.backend }}.
+            Write path may force-degrade or block PUT immediately.
+          runbook: >-
+            Check S3 gateway process, filer dependency, network. Backend health
+            callback also increments write degradation metrics.
+
+      # Unstable write health — frequent state changes.
+      # Note: changes() counts raw sample changes; scrape interval affects sensitivity.
+      - alert: SideweedWriteHealthFlapping
+        expr: changes(sideweed_write_health_status[15m]) > 6
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "sideweed write health flapping"
+          description: >-
+            sideweed_write_health_status changed more than 6 times in 15m.
+            Cluster or probes may be unstable.
+          runbook: >-
+            Review probe timeouts, network, partial SeaweedFS failures. Tune
+            write-health-interval / recovery thresholds if false positives.
+
+      # Long degradation without recovery event.
+      # Spurious if instance restarted while degraded (recovered_total resets).
+      - alert: SideweedNoRecoveryAfterDegradation
+        expr: |
+          sideweed_write_health_status == 0
+          and increase(sideweed_write_recovered_total[30m]) == 0
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "sideweed write path degraded without recovery"
+          description: >-
+            Write path degraded for 30m with no WRITE_RECOVERED-equivalent counter
+            increase. Manual intervention may be required.
+          runbook: >-
+            Run SeaweedFS health checks (master, volumes, filer, S3). After fix,
+            confirm sideweed_write_health_status==1 and PUT succeeds.
+
+      # Slow health probes — p95 over 5m above 2s (probe timeout default 1s on stand).
+      # Uses histogram buckets; requires sufficient scrape traffic for rate().
+      - alert: SideweedHealthProbeSlow
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(sideweed_health_probe_duration_seconds_bucket[5m])) by (le, probe)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "sideweed health probe slow ({{ $labels.probe }})"
+          description: >-
+            p95 probe latency for {{ $labels.probe }} exceeds 2s over 5m.
+            May precede write degradation under load or network issues.
+          runbook: >-
+            Check target service latency (S3, filer, master, assign). Tune
+            --write-health-timeout or scrape_interval. Alternative:
+            avg = rate(sum)/rate(count) on sideweed_health_probe_duration_seconds_*.

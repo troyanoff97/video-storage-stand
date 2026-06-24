@@ -93,6 +93,7 @@ SeaweedFS — **внешний customer fork** (не submodule). Pin: [docs/SEAW
 - [PRODUCTION-DEPLOY.md](docs/PRODUCTION-DEPLOY.md)
 - [DEBUG.md](docs/DEBUG.md)
 - [sideweed-health.md](docs/sideweed-health.md)
+- [SIDEWEED-ALERTING.md](docs/SIDEWEED-ALERTING.md) — metrics + sample alert rules (`observability/`)
 - [SEAWEEDFS_PIN.md](docs/SEAWEEDFS_PIN.md)
 - [PUSH-CHECKLIST.md](docs/PUSH-CHECKLIST.md)
 - [seaweedfs-disk-health.md](docs/seaweedfs-disk-health.md)
