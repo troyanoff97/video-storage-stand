@@ -91,7 +91,7 @@
 | **6.1 Health checks** | **Done** | Write path: S3, filer, master, assign probe | [sideweed-health.md](sideweed-health.md), `make test-sideweed` | Multi-S3-GW prod topology | — |
 | **6.2 PUT blocking** | **Done** | 503 fail-fast `PUT_BLOCKED` / `write_health_degraded` | `make test-sideweed`, commit `1d9e0f0`, `77eea5c` | — | — |
 | **6.3 Automatic recovery** | **Done** | PUT OK after master/S3/volumes recovery; `WRITE_RECOVERED` | `make test-sideweed` recovery scenarios | Long soak / prod soak | — |
-| **6.4 Logging / alerting** | **Partial** | JSON logs, trace; documented events | [sideweed-health.md](sideweed-health.md) | Prometheus/Grafana/alert rules in prod | No alerting integration on stand |
+| **6.4 Logging / alerting** | **Partial** | JSON logs (`WRITE_DEGRADED`, `PUT_BLOCKED`, `WRITE_RECOVERED`); alerting **proposal only** | [sideweed-health.md](sideweed-health.md); [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) | Metrics `/metrics`, Alertmanager rules, prod delivery | Customer monitoring stack |
 
 ---
 
@@ -126,7 +126,7 @@
 - **No streamserver / backend / LB** production configs для snapshots/archive.
 - **Archive bucket** на stand: `video-fragments`, не ТЗ `vab`.
 - **Metadata** archive + snapshots в одной runtime table `fragments`.
-- **No alerting integration** (Prometheus rules / on-call) на stand.
+- **No alerting integration** на stand — design: [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) (proposal, не runtime)
 - **No production rollout** — только local/dev stand.
 - **Latest 8 commits not pushed** to `origin/main`.
 - **Cassandra §5.3 compaction** и **§5.4 migration** не в runtime.
@@ -139,7 +139,7 @@
 | Приоритет | Действие |
 |-----------|----------|
 | **A** | **Push policy** — решить, пушить ли ahead 8 commits (см. [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)); без заказчика — можно держать локально |
-| **B** | **Локально:** углубление sideweed observability / alerting **design** (без prod deploy) |
+| **B** | **Локально:** Phase 1 metrics в sideweed fork по [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) (после согласования) |
 | **C** | **Production validation Cassandra:** запросить данные по [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) |
 | **D** | **Закрытие SeaweedFS §4:** выполнить [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) на test host |
 | **E** | **Внешний отчёт:** сократить этот документ + [CASSANDRA-TASK-STATUS.md](CASSANDRA-TASK-STATUS.md) для заказчика (после ревью) |
@@ -157,6 +157,7 @@
 | [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) | Задача №1 bare-metal |
 | [seaweedfs-disk-health.md](seaweedfs-disk-health.md) | Disk-health патч |
 | [sideweed-health.md](sideweed-health.md) | Write gate |
+| [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) | Alerting proposal §6.4 |
 | [STAND-TESTING.md](STAND-TESTING.md) | Тесты stand |
 | [TZ-DEVIATIONS.md](TZ-DEVIATIONS.md) | Stand vs production |
 
