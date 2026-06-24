@@ -85,7 +85,32 @@ Write sideweed экспортирует Prometheus metrics на:
 - `GET /metrics` (основной endpoint)
 - `GET /.prometheus/metrics` (legacy, тот же handler)
 
+## Health endpoints
+
+| Endpoint | Назначение | HTTP при OK | HTTP при проблеме |
+|----------|------------|-------------|------------------|
+| `GET /v1/health` | **LB / backend pool** — есть ли UP S3 backend для proxy | 200 (пустое тело) | 502 |
+| `GET /v1/write-health` | **Write gate readiness** — aggregate write path + per-probe JSON | 200 + `status: healthy` | 503 + `status: degraded` |
+
+`/v1/health` **не** отражает write gate: при master down и живом S3 backend `/v1/health` может оставаться **200**, тогда как `/v1/write-health` → **503**.
+
+`GET /v1/write-health` возвращает JSON:
+
+- `status`: `healthy` | `degraded` | `disabled` (если `--write-health-enabled` off)
+- `healthy`: boolean
+- `reason`: bounded degraded reason (`master_down`, `assign_failed`, …) или `""`
+- `updated_at`: RFC3339 последнего probe round
+- `probes[]`: `name`, `url`, `ok`, `status_code`, `latency_ms`, `error`, `checked_at`
+
 Пример:
+
+```bash
+curl -fsS http://localhost:8880/v1/write-health | jq .
+```
+
+При отключённом write gate: **200** + `{"status":"disabled","healthy":true}`.
+
+Пример metrics:
 
 ```bash
 curl -fsS http://localhost:8880/metrics | grep sideweed_write_health_status

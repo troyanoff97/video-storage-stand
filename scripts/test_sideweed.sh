@@ -20,6 +20,33 @@ log() { echo "$@"; }
 pass() { PASSES=$((PASSES + 1)); log "PASS: $1"; }
 fail() { FAILURES=$((FAILURES + 1)); log "FAIL: $1"; }
 
+write_health_fetch() {
+  curl -sS -w $'\n%{http_code}' "${SIDEWEED_URL}/v1/write-health" 2>/dev/null
+}
+
+# Args: expected_http expected_status_regex [timeout_seconds]
+wait_for_write_health() {
+  local expect_http="$1"
+  local expect_status_re="$2"
+  local timeout="${3:-$LOG_WAIT_TIMEOUT}"
+  local i raw http_code body
+  for i in $(seq 1 "$timeout"); do
+    raw=$(write_health_fetch)
+    http_code=$(echo "$raw" | tail -1)
+    body=$(echo "$raw" | sed '$d')
+    if [ "$http_code" = "$expect_http" ] && echo "$body" | grep -qE "\"status\"[[:space:]]*:[[:space:]]*\"${expect_status_re}\""; then
+      echo "$body"
+      return 0
+    fi
+    sleep 1
+  done
+  raw=$(write_health_fetch)
+  http_code=$(echo "$raw" | tail -1)
+  body=$(echo "$raw" | sed '$d')
+  log "write-health last response http=${http_code} body=${body}"
+  return 1
+}
+
 put_s3() {
   local label="$1"
   set +e
@@ -158,6 +185,13 @@ else
   fail "GET /metrics missing sideweed_write_health_status"
 fi
 
+log "==> write-health baseline"
+if wait_for_write_health 200 healthy 20 >/dev/null; then
+  pass "GET /v1/write-health baseline 200 status=healthy"
+else
+  fail "GET /v1/write-health baseline not healthy"
+fi
+
 log "==> master down → WRITE_DEGRADED + PUT 503 <1s"
 sideweed_log_checkpoint
 compose stop master
@@ -167,6 +201,11 @@ if wait_for_write_degraded "master_down|assign_failed"; then
   pass "WRITE_DEGRADED logged (master_down|assign_failed)"
 else
   fail "WRITE_DEGRADED not seen after master down (within ${LOG_WAIT_TIMEOUT}s)"
+fi
+if wait_for_write_health 503 degraded >/dev/null; then
+  pass "GET /v1/write-health 503 status=degraded (master down)"
+else
+  fail "GET /v1/write-health not degraded after master down"
 fi
 assert_put_503_fast "master-down" || true
 if wait_for_put_blocked "write_health_degraded"; then
@@ -199,6 +238,11 @@ else
   fail "missing WRITE_RECOVERED in sideweed logs"
   dump_sideweed_logs
 fi
+if wait_for_write_health 200 healthy 20 >/dev/null; then
+  pass "GET /v1/write-health 200 status=healthy after master recovery"
+else
+  fail "GET /v1/write-health not healthy after master recovery"
+fi
 
 log "==> all volumes down → WRITE_DEGRADED + PUT 503 <1s"
 sideweed_log_checkpoint
@@ -208,6 +252,11 @@ if wait_for_write_degraded "all_volumes_down|assign_failed"; then
   pass "WRITE_DEGRADED logged (all_volumes_down|assign_failed)"
 else
   fail "WRITE_DEGRADED not seen after all volumes down (within ${LOG_WAIT_TIMEOUT}s)"
+fi
+if wait_for_write_health 503 degraded >/dev/null; then
+  pass "GET /v1/write-health 503 status=degraded (all volumes down)"
+else
+  fail "GET /v1/write-health not degraded after all volumes down"
 fi
 assert_put_503_fast "all-volumes-down" || true
 compose start volume1 volume2
@@ -230,6 +279,11 @@ if wait_for_put_blocked "s3_backend_down"; then
 else
   fail "missing PUT_BLOCKED s3_backend_down"
   dump_sideweed_logs
+fi
+if wait_for_write_health 503 degraded >/dev/null; then
+  pass "GET /v1/write-health 503 status=degraded (S3 down)"
+else
+  fail "GET /v1/write-health not degraded after S3 down"
 fi
 compose up -d s3 sideweed
 sleep 12

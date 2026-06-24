@@ -49,7 +49,8 @@ Fork pin `1528e7d` already on customer remote; no new SeaweedFS push in this bat
 | Deliverable | Status |
 |-------------|--------|
 | Write gate (earlier commits, on remote @ `551df0b`) | [sideweed-health.md](sideweed-health.md) |
-| **Phase 1:** Prometheus `/metrics` | sideweed `7eadd37` (local only until push) |
+| **Phase 1:** Prometheus `/metrics` | sideweed `7eadd37`+ (local only until push) |
+| **`GET /v1/write-health`** | JSON write gate visibility (sideweed `2a428d2`) |
 | **Phase 2:** sample scrape + alert rules | `observability/prometheus-sideweed.yml`, `observability/sideweed-alert-rules.yml` |
 | Alerting design | [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) |
 
@@ -74,9 +75,10 @@ Fork pin `1528e7d` already on customer remote; no new SeaweedFS push in this bat
 | `make test-snapshot` | PASS |
 | `make test-range-query` | PASS |
 | `make verify-path` | PASS |
-| `make test-sideweed` | PASS (13/13, includes `/metrics` check) |
+| `make test-sideweed` | PASS (17+/13+, includes `/metrics` + `/v1/write-health`) |
 | `go test ./...` | PASS |
 | `curl localhost:8880/metrics` | PASS (`sideweed_write_health_status`, `sideweed_backend_up`) |
+| `curl localhost:8880/v1/write-health` | PASS (`status: healthy` when stack OK) |
 
 **Not run** after latest docs/config commits: `make chaos-matrix` (no runtime change expected; previous matrix runs documented separately).
 

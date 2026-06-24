@@ -96,6 +96,7 @@ make test-range-query
 make verify-path
 make test-sideweed
 curl -fsS http://localhost:8880/metrics | grep sideweed_write_health_status
+curl -fsS http://localhost:8880/v1/write-health | grep '"status":"healthy"'
 ```
 
 ### 6. Known risks
@@ -208,6 +209,7 @@ make test
 make test-sideweed
 make verify-path
 curl -fsS http://localhost:8880/metrics | grep sideweed_write_health_status
+curl -fsS http://localhost:8880/v1/write-health | grep '"status":"healthy"'
 ```
 
 ---
