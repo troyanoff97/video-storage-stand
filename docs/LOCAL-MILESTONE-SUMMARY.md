@@ -75,7 +75,7 @@ Fork pin `1528e7d` already on customer remote; no new SeaweedFS push in this bat
 | `make test-snapshot` | PASS |
 | `make test-range-query` | PASS |
 | `make verify-path` | PASS |
-| `make test-sideweed` | PASS (17+/13+, includes `/metrics` + `/v1/write-health`) |
+| `make test-sideweed` | PASS (26/26, includes filer-down scenario) |
 | `go test ./...` | PASS |
 | `curl localhost:8880/metrics` | PASS (`sideweed_write_health_status`, `sideweed_backend_up`) |
 | `curl localhost:8880/v1/write-health` | PASS (`status: healthy` when stack OK) |

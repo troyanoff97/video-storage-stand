@@ -263,6 +263,62 @@ compose start volume1 volume2
 sleep 10
 ./scripts/wait-healthy.sh >/dev/null
 
+log "==> filer down → WRITE_DEGRADED + PUT 503 <1s"
+sideweed_log_checkpoint
+compose stop filer
+sleep 1
+if wait_for_write_degraded "filer_down|s3_down|write_unhealthy"; then
+  pass "WRITE_DEGRADED logged after filer down (filer_down|s3_down|write_unhealthy)"
+else
+  fail "WRITE_DEGRADED not seen after filer down (within ${LOG_WAIT_TIMEOUT}s)"
+fi
+wh_filer_down=$(wait_for_write_health 503 degraded || true)
+if [ -n "$wh_filer_down" ]; then
+  pass "GET /v1/write-health 503 status=degraded (filer down)"
+  if echo "$wh_filer_down" | grep -q '"reason":"filer_down"'; then
+    pass "GET /v1/write-health reason=filer_down"
+  elif echo "$wh_filer_down" | grep -qE '"reason":"(s3_down|write_unhealthy)"'; then
+    reason=$(echo "$wh_filer_down" | grep -oE '"reason":"[^"]*"' | head -1)
+    pass "GET /v1/write-health degraded (${reason}; S3 may depend on filer)"
+    log "NOTE: filer-down reason=${reason} — if not filer_down, SeaweedFS S3↔filer coupling on stand"
+  else
+    reason=$(echo "$wh_filer_down" | grep -oE '"reason":"[^"]*"' | head -1 || echo "unknown")
+    fail "unexpected /v1/write-health reason after filer down: ${reason}"
+    log "write-health body: ${wh_filer_down}"
+  fi
+else
+  fail "GET /v1/write-health not degraded after filer down"
+fi
+assert_put_503_fast "filer-down" || true
+if wait_for_put_blocked "write_health_degraded"; then
+  pass "PUT_BLOCKED reason=write_health_degraded (filer down)"
+else
+  fail "missing PUT_BLOCKED write_health_degraded after filer down"
+  dump_sideweed_logs
+fi
+compose up -d filer
+sleep 10
+./scripts/wait-healthy.sh >/dev/null
+
+log "==> recovery after filer up"
+sideweed_log_checkpoint
+if wait_put_ok; then
+  pass "PUT works again after filer recovery (200)"
+else
+  fail "PUT did not recover after filer restart"
+fi
+if wait_for_write_recovered; then
+  pass "WRITE_RECOVERED logged after filer recovery"
+else
+  fail "missing WRITE_RECOVERED after filer recovery"
+  dump_sideweed_logs
+fi
+if wait_for_write_health 200 healthy 20 >/dev/null; then
+  pass "GET /v1/write-health 200 status=healthy after filer recovery"
+else
+  fail "GET /v1/write-health not healthy after filer recovery"
+fi
+
 log "==> S3 gateway down → PUT 503 <1s (not 502)"
 sideweed_log_checkpoint
 compose stop s3

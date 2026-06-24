@@ -133,5 +133,6 @@ cd sideweed && go test -v ./...   # unit tests
 - Здоровье volume выводится через master `/dir/assign`, не через per-volume `/status`
 - S3 backend offline также вызывает `WRITE_DEGRADED reason=s3_down` через backend health callback
 - Threshold/interval настроены под docker-стенд
+- **Filer down** покрыт `make test-sideweed` (отдельный сценарий: `compose stop filer` → degraded → recovery)
 
 См. [chaos-expectations.md](chaos-expectations.md), [STAND-TESTING.md](STAND-TESTING.md).
