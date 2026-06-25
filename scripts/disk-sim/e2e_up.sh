@@ -14,6 +14,7 @@ load_state
 is_mounted "$MNT1" || die "stor1 not mounted: $MNT1"
 is_mounted "$MNT2" || die "stor2 not mounted: $MNT2"
 
+pin_compose_project_from_running_stand
 assert_stand_project_matches_port8080
 export DISK_SIM_ROOT
 

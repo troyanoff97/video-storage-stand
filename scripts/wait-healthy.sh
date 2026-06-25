@@ -4,6 +4,15 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+if [[ -z "${COMPOSE_PROJECT_NAME:-}" ]]; then
+  _v1=$(docker ps --format '{{.Names}}' --filter "publish=8080" 2>/dev/null | grep -E 'volume1-' | head -1 || true)
+  if [[ "$_v1" =~ ^(.+)-volume1-[0-9]+$ ]]; then
+    export COMPOSE_PROJECT_NAME="${BASH_REMATCH[1]}"
+  fi
+fi
+COMPOSE=(docker compose)
+[[ -n "${COMPOSE_PROJECT_NAME:-}" ]] && COMPOSE+=(-p "$COMPOSE_PROJECT_NAME")
+
 MASTER_URL="${MASTER_URL:-http://localhost:9333}"
 VOLUME1_URL="${VOLUME1_URL:-http://localhost:8080}"
 VOLUME2_URL="${VOLUME2_URL:-http://localhost:8081}"
@@ -42,7 +51,7 @@ wait_for "HAProxy (read path)" "${READ_URL}/healthz"
 echo "Waiting for Cassandra at ${CASSANDRA_HOST}..."
 attempt=1
 max_attempts=60
-until docker compose exec -T cassandra cqlsh -e "DESCRIBE CLUSTER" >/dev/null 2>&1; do
+until "${COMPOSE[@]}" exec -T cassandra cqlsh -e "DESCRIBE CLUSTER" >/dev/null 2>&1; do
   if (( attempt >= max_attempts )); then
     echo "ERROR: Cassandra not ready after ${max_attempts} attempts" >&2
     exit 1
@@ -53,6 +62,6 @@ done
 echo "OK: Cassandra is ready"
 
 echo "Applying schema (idempotent)..."
-docker compose run --rm cql-init
+"${COMPOSE[@]}" run --rm cql-init
 
 echo "All services are healthy."

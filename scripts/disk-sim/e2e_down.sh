@@ -9,6 +9,7 @@ source "$SCRIPT_DIR/common.sh"
 CHAOS_COMPOSE_FILES=(docker-compose.yml docker-compose.chaos.yml)
 
 require_confirm
+pin_compose_project_from_running_stand
 assert_stand_project_matches_port8080
 
 sim_log "Restoring volume1 to chaos tmpfs overlay (project=$(resolve_compose_project))..."

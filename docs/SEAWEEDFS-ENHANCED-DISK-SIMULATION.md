@@ -217,7 +217,7 @@ Destructive reproduction — **только** на isolated test host или ч�
 
 **Не проверялось:** dm-error auto-run; bare-metal sign-off.
 
-**E2E overlay (bind mount → weed volume):** первый ручной прогон **PARTIAL** (2026-06-25) — см. [SEAWEEDFS-DISK-SIM-E2E.md](SEAWEEDFS-DISK-SIM-E2E.md) §6.1; fix compose project применён, re-run pending.
+**E2E overlay:** повторный прогон **PASS** (2026-06-25) — см. [SEAWEEDFS-DISK-SIM-E2E.md](SEAWEEDFS-DISK-SIM-E2E.md) §6.2. Не заменяет bare-metal sign-off.
 
 ---
 

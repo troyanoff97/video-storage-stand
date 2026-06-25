@@ -1,6 +1,6 @@
 # SeaweedFS disk simulation — E2E overlay
 
-**Status:** implemented (local only). Host loopback ext4 → docker bind mount → `weed volume -dir=/data1,/data2`.
+**Status:** implemented and **local verified PASS** (2026-06-25). Host loopback ext4 → docker bind mount → `weed volume -dir=/data1,/data2`.
 
 **Связанные:** [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md), `docker-compose.disk-sim.yml`, `scripts/disk-sim/e2e_*.sh`
 
@@ -29,17 +29,20 @@ PUT: sideweed → S3 → filer → master → volumes
 | Main compose | `docker-compose.yml` **не меняется**; overlay отдельный файл |
 | Volumes | **No** `docker compose down -v` |
 | Restore | `e2e_down.sh` возвращает volume1 на chaos tmpfs |
-| Compose project | **Должен совпадать** с running stand (см. §2.1) |
+| Compose project | **Pinned** до recreate (`pin_compose_project_from_running_stand`) |
 
 ### 2.1 Compose project name
 
-E2E скрипты управляют **тем же** compose project, что и активный stand. По умолчанию имя каталога (`work2`), но если stand поднят из другого clone/имени (напр. `video-storage-stand-fresh-metrics`), нужно:
+Stand может работать не под именем каталога (`work2`), а под другим project (напр. `video-storage-stand-fresh-metrics`). Скрипты:
+
+1. **Pin** `COMPOSE_PROJECT_NAME` по running `*-volume1-*` на `:8080` **до** `stop/rm volume1`
+2. Auto-detect для `collect_logs` / `wait-healthy.sh`
+
+При необходимости вручную:
 
 ```bash
-export COMPOSE_PROJECT_NAME=video-storage-stand-fresh-metrics   # или auto-detect
+export COMPOSE_PROJECT_NAME=video-storage-stand-fresh-metrics
 ```
-
-Скрипты **авто-детектят** project по контейнеру `*-volume1-*` на порту `:8080`. При несовпадении — явная ошибка до recreate.
 
 ---
 
@@ -57,9 +60,9 @@ CONFIRM_DISK_SIM=1 make disk-sim-cleanup    # teardown loopback
 
 ## 4. E2E scenarios (`e2e_test.sh`)
 
-1. Preflight: volume1 bind-mounts `stor1`/`stor2` (fail-fast если `e2e_up` не применился)
+1. Preflight: volume1 bind-mounts `stor1`/`stor2`
 2. Baseline PUT/GET via production path
-3. Disk full on **stor1** → PUT still OK; volume logs show data1 fault / data2 assign
+3. Disk full on **stor1** → PUT OK; volume logs data2 assign
 4. Read-only **stor1** → PUT OK via healthy path
 5. Umount **stor1** → volume stays up; PUT via data2/volume2
 6. `recover_mounts.sh` → PUT/GET PASS
@@ -69,10 +72,11 @@ CONFIRM_DISK_SIM=1 make disk-sim-cleanup    # teardown loopback
 
 ## 5. Limitations
 
-- Не bare-metal sign-off; bind mount через Docker ≠ production `/mnt/stor14`
-- Пересоздание volume1 меняет volume slots на стенде (восстанавливается `e2e_down.sh`)
-- Требует sudo для loopback setup/faults
-- `dm-error` scenario — host sim only, не в E2E compose
+- **Не** production bare-metal sign-off
+- Bind mount через Docker ≠ physical `/mnt/stor14`
+- Пересоздание volume1 меняет volume slots (восстанавливается `e2e_down.sh`)
+- Требует sudo для loopback (или privileged Docker fallback в `run_root`)
+- `dm-error` — host sim only
 
 ---
 
@@ -80,26 +84,30 @@ CONFIRM_DISK_SIM=1 make disk-sim-cleanup    # teardown loopback
 
 | Date | Operator | Result | Notes |
 |------|----------|--------|-------|
-| 2026-06-25 | manual | **PARTIAL** | см. §6.1 |
+| 2026-06-25 | manual | **PARTIAL** | §6.1 — compose project bug (pre-`bce1bfb` follow-up) |
+| 2026-06-25 | manual | **PASS** | §6.2 — после pin project + `bce1bfb` fixes |
 
-### 6.1 Ручной прогон 2026-06-25 (до fix compose project)
+### 6.1 Первый прогон (PARTIAL)
 
-**Stand:** `video-storage-stand-fresh-metrics` (не `work2`). **Commit:** `f93ba31`.
+См. commit `f93ba31` / `bce1bfb` — project mismatch `work2` vs `video-storage-stand-fresh-metrics`.
 
-| Step | Result | Notes |
-|------|--------|-------|
-| `disk-sim-setup` | **PASS** | loop10/11 → stor1/stor2 |
-| `disk-sim-e2e-up` | **FAIL** | `Bind for 0.0.0.0:8080 failed` — создавался `work2-volume1-1`, порт занят `video-storage-stand-fresh-metrics-volume1-1` |
-| `disk-sim-e2e-test` | **PARTIAL** | baseline/recovery PUT+GET **PASS**; host fault scripts **PASS**; **3× FAIL** log checks (volume1 без bind mounts → weed не видел host faults) |
-| `disk-sim-e2e-down` | **FAIL** | тот же port conflict |
-| `disk-sim-cleanup` | **PASS** | |
-| sideweed smoke | **PASS** | write-health healthy |
+### 6.2 Повторный прогон PASS (2026-06-25)
 
-**Root cause:** E2E скрипты не использовали compose project активного stand; `e2e_up` не применил overlay.
+**Stand:** `video-storage-stand-fresh-metrics`. **Commits:** `bce1bfb` + pin-project fix.
 
-**Fix (post-`f93ba31`):** auto-detect `COMPOSE_PROJECT_NAME`, `stop/rm` перед recreate, preflight bind-mount check в `e2e_test`.
+| Step | Result |
+|------|--------|
+| `disk-sim-setup` | **PASS** (loopback ext4 stor1/stor2) |
+| `disk-sim-e2e-up` | **PASS** — bind mounts verified, project pinned |
+| `disk-sim-e2e-test` | **PASS** — все сценарии + collect_logs |
+| `disk-sim-e2e-down` | **PASS** — volume1 restored to chaos tmpfs |
+| `disk-sim-cleanup` | **PASS** |
+| `make test-sideweed` | **PASS=30 FAIL=0** (с `COMPOSE_PROJECT_NAME` / auto-detect) |
+| sideweed smoke | **PASS** |
 
-**Re-run required** для полного E2E PASS после fix.
+**Проверено:** loopback ext4 → docker bind → `-dir=/data1,/data2` → baseline PUT/GET → disk full → read-only → umount → recovery → logs → cleanup → stand restored.
+
+**Не проверено:** production bare-metal sign-off.
 
 ---
 

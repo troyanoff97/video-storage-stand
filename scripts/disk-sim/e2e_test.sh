@@ -11,6 +11,7 @@ E2E_COMPOSE_FILES=(docker-compose.yml docker-compose.chaos.yml docker-compose.di
 require_confirm
 load_state
 
+pin_compose_project_from_running_stand
 assert_stand_project_matches_port8080
 export DISK_SIM_ROOT
 

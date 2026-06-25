@@ -68,14 +68,25 @@ need_root_for_mount() {
   die "mount/umount/losetup require root or sudo"
 }
 
+run_root_via_docker() {
+  local inner
+  inner=$(printf '%q ' "$@")
+  docker run --rm --privileged \
+    --mount "type=bind,source=${DISK_SIM_ROOT},target=${DISK_SIM_ROOT},bind-propagation=rshared" \
+    -v /dev:/dev \
+    debian:bookworm-slim bash -c "$inner"
+}
+
 run_root() {
   need_root_for_mount
   if [[ "$(id -u)" -eq 0 ]]; then
     "$@"
+  elif sudo -n true 2>/dev/null; then
+    sudo -E "$@"
   elif [[ -n "${SUDO_ASKPASS:-}" ]] && [[ -x "${SUDO_ASKPASS}" ]]; then
     sudo -A -E "$@"
   else
-    sudo -E "$@"
+    run_root_via_docker "$@"
   fi
 }
 
@@ -177,6 +188,14 @@ resolve_compose_project() {
     return 0
   fi
   basename "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+}
+
+# Pin compose project while volume1 is still up (before stop/rm in e2e_up).
+pin_compose_project_from_running_stand() {
+  local detected
+  detected="$(detect_compose_project_name)" || die "Cannot detect compose project from running volume1 on :8080"
+  export COMPOSE_PROJECT_NAME="$detected"
+  sim_log "Pinned COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}"
 }
 
 assert_stand_project_matches_port8080() {
