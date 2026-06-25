@@ -6,12 +6,13 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # shellcheck source=common.sh
 source "$SCRIPT_DIR/common.sh"
 
+CHAOS_COMPOSE_FILES=(docker-compose.yml docker-compose.chaos.yml)
+
 require_confirm
+assert_stand_project_matches_port8080
 
-COMPOSE=(docker compose -f "$ROOT_DIR/docker-compose.yml" -f "$ROOT_DIR/docker-compose.chaos.yml")
-
-sim_log "Restoring volume1 to chaos tmpfs overlay (no disk-sim binds)..."
-"${COMPOSE[@]}" up -d --no-deps --force-recreate volume1
+sim_log "Restoring volume1 to chaos tmpfs overlay (project=$(resolve_compose_project))..."
+recreate_compose_service "$ROOT_DIR" "${CHAOS_COMPOSE_FILES[@]}" volume1
 
 sim_log "Waiting for volume1 health..."
 for _ in $(seq 1 60); do

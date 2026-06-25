@@ -215,7 +215,9 @@ Destructive reproduction — **только** на isolated test host или ч�
 | Log collection | `collect_logs.sh` | **PASS** |
 | Cleanup | `cleanup_loopback_dirs.sh` | **PASS** (no stale mounts/loops) |
 
-**Не проверялось:** dm-error auto-run; bind-mount sim → docker `weed volume`; bare-metal sign-off.
+**Не проверялось:** dm-error auto-run; bare-metal sign-off.
+
+**E2E overlay (bind mount → weed volume):** первый ручной прогон **PARTIAL** (2026-06-25) — см. [SEAWEEDFS-DISK-SIM-E2E.md](SEAWEEDFS-DISK-SIM-E2E.md) §6.1; fix compose project применён, re-run pending.
 
 ---
 

@@ -40,7 +40,13 @@ Makefile targets: `make disk-sim-setup`, `make disk-sim-logs`, etc.
 
 ## E2E overlay (weed volume bind mounts)
 
-After loopback setup, wire host mounts into `volume1` and run faults through production path:
+**Важно:** compose project должен совпадать с running stand. Скрипты auto-detect по `*-volume1-*` на `:8080`; при необходимости:
+
+```bash
+export COMPOSE_PROJECT_NAME=video-storage-stand-fresh-metrics
+```
+
+После loopback setup:
 
 ```bash
 CONFIRM_DISK_SIM=1 make disk-sim-e2e-up

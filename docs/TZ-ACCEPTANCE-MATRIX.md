@@ -193,8 +193,8 @@
 | **Implementation** | `make up`, chaos-matrix, test-sideweed, disk-sim, fresh clone PASS |
 | **Evidence** | [STAND-TESTING.md](STAND-TESTING.md), [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md) |
 | **Status** | **Partial / local verified** |
-| **Gap** | Bare-metal; optional [SEAWEEDFS-DISK-SIM-E2E.md](SEAWEEDFS-DISK-SIM-E2E.md) |
-| **Next** | E2E overlay when safe |
+| **Gap** | Bare-metal; E2E overlay **PARTIAL** (first run 2026-06-25, compose project fix applied) |
+| **Next** | Re-run `disk-sim-e2e-*` after fix; bare-metal when host available |
 
 ---
 

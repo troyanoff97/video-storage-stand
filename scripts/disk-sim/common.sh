@@ -120,7 +120,6 @@ show_mount_status() {
   df -h "$DISK_SIM_ROOT"/* 2>/dev/null || df -h "$DISK_SIM_ROOT" 2>/dev/null || true
 }
 
-# Unmount all targets under DISK_SIM_ROOT (deepest first) and detach loop devices on our images.
 force_teardown_sim() {
   local root img loop_dev targets
   root="$(readlink -f "$DISK_SIM_ROOT" 2>/dev/null || echo "$DISK_SIM_ROOT")"
@@ -151,4 +150,88 @@ force_teardown_sim() {
     loop_dev="$(losetup -j "$img" 2>/dev/null | cut -d: -f1 | head -1 || true)"
     [[ -n "$loop_dev" ]] && run_root losetup -d "$loop_dev" 2>/dev/null || true
   done
+}
+
+# Compose project for stand (must match running stack, not only directory name).
+detect_compose_project_name() {
+  local name
+  name=$(docker ps --format '{{.Names}}' --filter "publish=8080" 2>/dev/null | grep -E 'volume1-' | head -1 || true)
+  if [[ -z "$name" ]]; then
+    return 1
+  fi
+  if [[ "$name" =~ ^(.+)-volume1-[0-9]+$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  return 1
+}
+
+resolve_compose_project() {
+  if [[ -n "${COMPOSE_PROJECT_NAME:-}" ]]; then
+    printf '%s\n' "$COMPOSE_PROJECT_NAME"
+    return 0
+  fi
+  local detected
+  if detected="$(detect_compose_project_name)"; then
+    printf '%s\n' "$detected"
+    return 0
+  fi
+  basename "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+}
+
+assert_stand_project_matches_port8080() {
+  local project name holder_proj
+  project="$(resolve_compose_project)"
+  name=$(docker ps --format '{{.Names}}' --filter "publish=8080" 2>/dev/null | grep -E 'volume1-' | head -1 || true)
+  [[ -n "$name" ]] || return 0
+  if [[ "$name" =~ ^(.+)-volume1-[0-9]+$ ]]; then
+    holder_proj="${BASH_REMATCH[1]}"
+    if [[ "$holder_proj" != "$project" ]]; then
+      die "Port 8080 held by compose project '${holder_proj}' but scripts target '${project}'. Export COMPOSE_PROJECT_NAME=${holder_proj}"
+    fi
+  fi
+}
+
+# Build and run docker compose for stand. Usage:
+#   compose_stand "$ROOT" file1.yml file2.yml -- ps volume1
+compose_stand() {
+  local root_dir="$1"
+  shift
+  local project args=()
+  project="$(resolve_compose_project)"
+  args=(-p "$project")
+  while [[ $# -gt 0 && "$1" != -- ]]; do
+    args+=(-f "${root_dir}/$1")
+    shift
+  done
+  [[ "${1:-}" == -- ]] && shift
+  docker compose "${args[@]}" "$@"
+}
+
+recreate_compose_service() {
+  local root_dir="$1"
+  shift
+  local service="${!#}"
+  local -a files=()
+  while [[ $# -gt 1 ]]; do
+    files+=("$1")
+    shift
+  done
+  compose_stand "$root_dir" "${files[@]}" -- stop "$service" 2>/dev/null || true
+  compose_stand "$root_dir" "${files[@]}" -- rm -f "$service" 2>/dev/null || true
+  compose_stand "$root_dir" "${files[@]}" -- up -d --no-deps "$service"
+}
+
+verify_volume1_disk_sim_binds() {
+  local root_dir="$1"
+  shift
+  local -a files=("$@")
+  local cid mnts
+  cid=$(compose_stand "$root_dir" "${files[@]}" -- ps -q volume1 2>/dev/null | head -1)
+  [[ -n "$cid" ]] || die "volume1 not running in compose project $(resolve_compose_project) — run e2e_up.sh first"
+  mnts=$(docker inspect "$cid" --format '{{range .Mounts}}{{.Source}} {{end}}')
+  if ! echo "$mnts" | grep -q "${DISK_SIM_ROOT}/mnt/stor1"; then
+    die "volume1 has no bind mount to ${DISK_SIM_ROOT}/mnt/stor1 — e2e_up did not apply (check e2e_up / COMPOSE_PROJECT_NAME)"
+  fi
+  sim_log "volume1 bind mounts OK (disk-sim E2E active)"
 }

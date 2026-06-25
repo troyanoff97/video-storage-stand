@@ -50,7 +50,7 @@ Runtime `cassandra/schema.cql` и `docker-compose.yml` для v2 **не меня
 | TZ acceptance matrix | [TZ-ACCEPTANCE-MATRIX.md](TZ-ACCEPTANCE-MATRIX.md) |
 | Snapshot migration runbook | [SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md](SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md) — без apply |
 | Customer incident bundle | [CUSTOMER-INCIDENT-DIAGNOSTICS.md](CUSTOMER-INCIDENT-DIAGNOSTICS.md), `scripts/customer/` |
-| Disk-sim E2E overlay | [SEAWEEDFS-DISK-SIM-E2E.md](SEAWEEDFS-DISK-SIM-E2E.md) — design only |
+| Disk-sim E2E overlay | [SEAWEEDFS-DISK-SIM-E2E.md](SEAWEEDFS-DISK-SIM-E2E.md) — **PARTIAL** (2026-06-25; compose project fix, re-run pending) |
 
 ### Процесс
 
@@ -77,7 +77,7 @@ Fresh clone verification (`video-storage-stand-fresh-metrics`):
 | `GET /v1/write-health` | PASS (`status: healthy`) |
 | `GET /metrics` | PASS (`sideweed_write_health_status`) |
 
-`scripts/disk-sim/` — ручной прогон enhanced disk simulation **PASS** (2026-06-25, см. [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) §12).
+`scripts/disk-sim/` — enhanced host sim **PASS** (2026-06-25); E2E overlay **PARTIAL** (compose project fix, re-run pending).
 
 `make chaos-matrix` в этом прогоне **не запускался**.
 

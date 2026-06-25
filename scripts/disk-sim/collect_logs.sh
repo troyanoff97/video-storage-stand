@@ -25,13 +25,17 @@ save() {
 
 cd "$ROOT_DIR"
 if [[ "${DISK_SIM_E2E:-}" == "1" ]]; then
-  COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.chaos.yml -f docker-compose.disk-sim.yml)
+  COMPOSE_FILES=(docker-compose.yml docker-compose.chaos.yml docker-compose.disk-sim.yml)
 else
-  COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.chaos.yml)
+  COMPOSE_FILES=(docker-compose.yml docker-compose.chaos.yml)
 fi
 
-save docker-compose-ps.txt "${COMPOSE[@]}" ps
-save docker-compose-logs.txt "${COMPOSE[@]}" logs --no-color --tail=500 \
+compose_logs() {
+  compose_stand "$ROOT_DIR" "${COMPOSE_FILES[@]}" -- "$@"
+}
+
+save docker-compose-ps.txt compose_logs ps
+save docker-compose-logs.txt compose_logs logs --no-color --tail=500 \
   master volume1 volume2 filer s3 sideweed sideweed-read haproxy cassandra
 
 save df-h.txt df -h

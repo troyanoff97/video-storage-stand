@@ -6,11 +6,13 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # shellcheck source=common.sh
 source "$SCRIPT_DIR/common.sh"
 
+E2E_COMPOSE_FILES=(docker-compose.yml docker-compose.chaos.yml docker-compose.disk-sim.yml)
+
 require_confirm
 load_state
 
-COMPOSE=(docker compose -f "$ROOT_DIR/docker-compose.yml" -f "$ROOT_DIR/docker-compose.chaos.yml" \
-  -f "$ROOT_DIR/docker-compose.disk-sim.yml")
+assert_stand_project_matches_port8080
+export DISK_SIM_ROOT
 
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 RESULTS="${DISK_SIM_ROOT}/logs/e2e-${TS}.txt"
@@ -64,7 +66,7 @@ check_volume_logs() {
   local label="$1"
   shift
   local logs
-  logs=$("${COMPOSE[@]}" logs volume1 --tail=200 2>&1)
+  logs=$(compose_stand "$ROOT_DIR" "${E2E_COMPOSE_FILES[@]}" -- logs volume1 --tail=200 2>&1)
   for pattern in "$@"; do
     if echo "$logs" | grep -qiE "$pattern"; then
       log "LOG OK [${label}]: matched /${pattern}/"
@@ -83,6 +85,7 @@ clear_stor1_fill() {
 log "E2E disk-sim test start: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 curl -fsS http://localhost:8080/healthz >/dev/null || die "volume1 not healthy — run e2e_up.sh first"
+verify_volume1_disk_sim_binds "$ROOT_DIR" "${E2E_COMPOSE_FILES[@]}"
 curl -fsS http://localhost:8880/v1/write-health | grep -q '"status":"healthy"' || \
   log "WARN: sideweed write-health not healthy at start"
 
