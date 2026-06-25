@@ -35,7 +35,7 @@ Fetch from customer fork: cd seaweedfs && git fetch origin ${REQUIRED_BRANCH}"
   short_head="$(git -C "$dir" rev-parse --short=7 HEAD)"
   if [ "$short_head" != "$REQUIRED_SHORT_COMMIT" ]; then
     fail "after checkout HEAD is ${short_head}, required ${REQUIRED_SHORT_COMMIT}.
-See docs/SEAWEEDFS_PIN.md"
+See docs/02-ARCHITECTURE.md"
   fi
   echo "OK: seaweedfs at ${short_head}"
 }
@@ -53,7 +53,7 @@ if [ -z "${SEAWEEDFS_REPO_URL:-}" ]; then
   fail "SEAWEEDFS_REPO_URL is not set and ${SEAWEEDFS_DIR} does not exist.
 Example:
   SEAWEEDFS_REPO_URL=${DEFAULT_REPO_PLACEHOLDER} make init-seaweedfs
-See docs/SEAWEEDFS_PIN.md"
+See docs/02-ARCHITECTURE.md"
 fi
 
 if [ -d "$SEAWEEDFS_DIR" ]; then

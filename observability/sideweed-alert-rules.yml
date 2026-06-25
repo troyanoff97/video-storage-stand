@@ -21,7 +21,7 @@ groups:
             sideweed_write_health_status is 0 for at least 30s. Mutating requests
             (PUT/POST/DELETE) may be blocked with 503.
           runbook: >-
-            Check SeaweedFS master, volumes, filer, S3 gateway. See docs/sideweed-health.md;
+            Check SeaweedFS master, volumes, filer, S3 gateway. See docs/04-OPERATIONS.md;
             reproduce with make test-sideweed. Tune: consider severity=critical when for>5m.
 
       # Any blocked PUT activity (low threshold — informational/warning).
@@ -38,7 +38,7 @@ groups:
             Clients receive 503 fail-fast on write path.
           runbook: >-
             Inspect sideweed logs for PUT_BLOCKED reason; correlate with
-            sideweed_write_degraded_total{reason}. See docs/sideweed-health.md.
+            sideweed_write_degraded_total{reason}. See docs/04-OPERATIONS.md.
 
       # Sustained high block rate — tune threshold to expected write QPS.
       - alert: SideweedPutBlockedHighRate

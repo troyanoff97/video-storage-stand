@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # collect_seaweedfs_incident_bundle.sh — read-only incident data collection.
 # Does NOT modify configs, restart services, or delete files.
-# Config files with secrets: send separately with redaction (see docs/CUSTOMER-INCIDENT-DIAGNOSTICS.md).
+# Config files with secrets: send separately with redaction (see docs/04-OPERATIONS.md).
 
 set -euo pipefail
 

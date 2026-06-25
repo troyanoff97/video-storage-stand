@@ -2,7 +2,7 @@
 # Production target: vmalert + VictoriaMetrics scrape. NOT applied by stand runtime.
 #
 # Validate (PyYAML): python3 -c "import yaml; yaml.safe_load(open('observability/vmalert-sideweed-rules.yml'))"
-# Deploy: merge into customer vmalert -rule / -dryRun paths per docs/VMALERT-INTEGRATION.md
+# Deploy: merge into customer vmalert -rule / -dryRun paths per docs/04-OPERATIONS.md
 
 groups:
   - name: sideweed-write
@@ -19,7 +19,7 @@ groups:
           summary: "sideweed write path degraded"
           description: >-
             sideweed_write_health_status is 0 for at least 30s. PUT/POST/DELETE may return 503.
-          runbook: "docs/sideweed-health.md; make test-sideweed"
+          runbook: "docs/04-OPERATIONS.md; make test-sideweed"
 
       - alert: SideweedPutBlocked
         expr: increase(sideweed_put_blocked_total[5m]) > 0
@@ -30,7 +30,7 @@ groups:
         annotations:
           summary: "sideweed blocked mutating requests"
           description: "sideweed_put_blocked_total increased in 5m (check reason label)."
-          runbook: "docs/sideweed-health.md"
+          runbook: "docs/04-OPERATIONS.md"
 
       - alert: SideweedPutBlockedHighRate
         expr: sum(rate(sideweed_put_blocked_total[5m])) > 0.5

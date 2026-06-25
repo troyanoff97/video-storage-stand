@@ -17,7 +17,7 @@ fail() {
 if [ ! -d "$SEAWEEDFS_DIR" ]; then
   fail "./seaweedfs is missing. Clone the customer fork, e.g.:
   SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs
-See docs/SEAWEEDFS_PIN.md"
+See docs/02-ARCHITECTURE.md"
 fi
 
 if [ ! -d "$SEAWEEDFS_DIR/weed" ]; then
@@ -39,7 +39,7 @@ Checkout the pinned commit:
   cd seaweedfs && git fetch origin && git checkout ${REQUIRED_FULL_COMMIT}
 Or re-init:
   SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs
-See docs/SEAWEEDFS_PIN.md"
+See docs/02-ARCHITECTURE.md"
 fi
 
 echo "OK: seaweedfs at ${short_head} (required ${REQUIRED_SHORT_COMMIT})"
