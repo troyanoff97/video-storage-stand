@@ -358,20 +358,18 @@ docker logs <volume-container> 2>&1 | grep -iE 'disk location|unhealthy|recovere
 
 ---
 
-## 7a. Enhanced local simulation (пока нет customer metal)
+### Enhanced local simulation (реализовано в stand repo)
 
-Пока заказчик не предоставил bare-metal host ([PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) §8), можно усилить **локальную** симуляцию (runbook only, **не реализовано** в stand):
+Скрипты `scripts/disk-sim/` + [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md):
 
-| Техника | Сценарий | Примечание |
-|---------|----------|------------|
-| Loopback **ext4** image | Отдельный `-dir` на file-backed FS | `dd` + `mkfs.ext4` + `mount -o loop` |
-| **read-only remount** | Dir isolation (§4.3) | `mount -o remount,ro` на одном dir |
-| **disk full** | minFreeSpace / readonly | `fallocate` / `dd` fill |
-| **dmsetup error** (optional) | I/O errors (§4.2) | Требует root; не везде доступно |
+| Техника | Статус |
+|---------|--------|
+| Loopback ext4 (`setup_loopback_dirs.sh`) | **Реализовано** |
+| disk full / ro / umount / recover | **Реализовано** |
+| `collect_logs.sh` | **Реализовано** |
+| dm-error | Документировано; auto-run **нет** |
 
-Production: **14 `-dir`** (`/mnt/stor1`…`/mnt/stor14`) — simulation должна моделировать **partial dir fault**, не только whole-node down.
-
-**Честно:** enhanced simulation **не заменяет** production bare-metal sign-off.
+**Не заменяет** production bare-metal sign-off. Заказчик не предоставляет isolated node — destructive prod tests **запрещены**; только diagnostics / log collection или isolated test host.
 
 ---
 

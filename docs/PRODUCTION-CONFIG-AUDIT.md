@@ -274,18 +274,11 @@ Round-robin director на stor1–stor3 `:8333`.
 - 3 stor nodes × 14 dirs = высокая cardinality disk paths.
 - Bare-metal test host от заказчика **не предоставлен**.
 
-### Enhanced local simulation (предложение)
+### Enhanced local simulation (реализовано)
 
-Пока нет customer metal — усилить stand simulation (docs/runbook only, **не реализовано**):
+Скрипты `scripts/disk-sim/` + [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md): loopback ext4, disk full, ro remount, umount, recovery, log collection.
 
-| Техника | Что даёт | Ограничение |
-|---------|----------|-------------|
-| Loopback **ext4** images (`dd` + `mkfs.ext4` + `mount`) | Реальный FS, `fallocate`, `remount ro` | Не SMART, не RAID |
-| **read-only remount** на одном `-dir` | Сценарий 4.2/4.3 partial | Не production latency |
-| **disk full** (`fallocate` / `dd`) | minFreeSpace / readonly transition | tmpfs ведёт себя иначе |
-| **dmsetup** error injection (optional) | I/O errors | Требует root, не везде доступно |
-
-**Честно:** enhanced simulation **не заменяет** production bare-metal sign-off.
+**Не заменяет** production bare-metal sign-off. Destructive tests на production **без isolated node запрещены** — только diagnostics / log collection.
 
 ---
 
@@ -297,7 +290,7 @@ Round-robin director на stor1–stor3 `:8333`.
 | 2 | Сверить stand `observability/` rules с VictoriaMetrics/vmalert target |
 | 3 | Подготовить migration checklist vab→csb (config keys выше) — **без apply** |
 | 4 | Сравнить production `seaweedfs.filemeta` TWCS с stand `schema-v2` draft |
-| 5 | Расширить disk-fault runbook: loopback ext4 simulation plan |
+| 5 | Прогон enhanced disk sim: `scripts/disk-sim/` ([SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md)) |
 | 6 | Добавить vmalert-oriented sample в `observability/` (optional, отдельный commit) |
 | 7 | Продолжить stand tests: `make test-sideweed`, chaos-matrix |
 

@@ -59,7 +59,7 @@
 | Пункт | Статус | Что сделано | Подтверждение | Что осталось | Блокер |
 |-------|--------|-------------|---------------|--------------|--------|
 | **4.1 Fork SeaweedFS** | **Done** | Customer fork, branch `feat/volume-disk-health-isolation`, pin `1528e7d` | [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md), `make check-seaweedfs`, commits `af95554`+ | Push policy / customer remote sync | — |
-| **4.2 Обработка отказа диска** | **Partial** | Патч volume; prod: **14 `-dir`** per node | [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) §8; `make chaos-multi-dir` | Bare-metal sign-off | Customer metal host |
+| **4.2 Обработка отказа диска** | **Partial** | Патч volume; prod 14 `-dir`; **enhanced host sim** | [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md), `scripts/disk-sim/` | Bare-metal sign-off | Customer metal host |
 | **4.3 Изоляция damaged disk** | **Partial** | Multi-dir skip; master removes writables; writes on healthy dir | `make chaos-multi-dir` when fault applies | Guaranteed per-dir on physical disk | Same as 4.2 |
 | **4.4 Логирование** | **Partial** | Structured logs: path, volume IDs, heartbeat, `/status`, Prometheus metric | [seaweedfs-disk-health.md](seaweedfs-disk-health.md) | Full sign-off on prod host | Bare-metal run |
 | **4.5 Восстановление** | **Partial** | Recovery loop + heartbeat; `chaos-reset`, recovery scripts | `make chaos-recovery*`, log `recovered and is healthy again` | Remount real disk timing SLA | Bare-metal scenario H |
@@ -98,7 +98,7 @@
 | Пункт | Статус | Что сделано | Подтверждение | Что осталось | Блокер |
 |-------|--------|-------------|---------------|--------------|--------|
 | **Local stand** | **Done** | `make up`, health, smoke tests | [STAND-TESTING.md](STAND-TESTING.md), fresh clone PASS | — | — |
-| **Disk fault** | **Partial** | `make chaos-matrix`, `chaos-multi-dir` | [chaos-expectations.md](chaos-expectations.md) | Bare-metal B–G | tmpfs/remount limits |
+| **Disk fault** | **Partial** | `chaos-matrix`, `chaos-multi-dir`; **enhanced host sim** `scripts/disk-sim/` | [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) | Bare-metal B–G sign-off | Customer metal host |
 | **Disk recovery** | **Partial** | `chaos-reset`, `make chaos-recovery*` | Scripts + docs | Real disk remount H | Bare metal |
 | **SeaweedFS unavailable** | **Done** | master/volumes/S3 down scenarios | `make test-sideweed`, chaos-matrix | — | — |
 | **sideweed behavior** | **Done** | Write gate + read path separation | `make test-sideweed`, matrix #7 | — | — |
@@ -128,7 +128,7 @@
 - **Alert delivery** не реализован — metrics и sample rules в `observability/`; см. [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md).
 - **Production rollout** не выполнен — local/dev stand.
 - **Cassandra §5.3 compaction** и **§5.4 migration** не в runtime.
-- **Bare-metal disk test plan** — документ готов, **прогон не зафиксирован**.
+- **Bare-metal disk test** — заказчик не предоставляет host; **enhanced local sim** (`scripts/disk-sim/`) добавлен; **не** заменяет physical sign-off.
 - **sideweed:** direct per-volume probes и multi-master visibility — **gap** (см. §6.1).
 
 ---
@@ -140,7 +140,7 @@
 | **A** | **vmalert delivery** — адаптировать `observability/` rules под VictoriaMetrics stack заказчика |
 | **B** | **Snapshot vab→csb** — migration checklist ([PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) §4) |
 | **C** | **teye Cassandra** — запросить DDL/query patterns |
-| **D** | **SeaweedFS §4** — enhanced local simulation + bare-metal когда доступен |
+| **D** | **SeaweedFS §4** — прогон [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md); bare-metal когда доступен |
 
 ---
 
@@ -152,6 +152,7 @@
 | [CASSANDRA-TASK-STATUS.md](CASSANDRA-TASK-STATUS.md) | Задача №2 §5 |
 | [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md) | Capacity model |
 | [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) | Checklist к заказчику |
+| [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) | Host loopback disk sim |
 | [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) | Задача №1 bare-metal |
 | [seaweedfs-disk-health.md](seaweedfs-disk-health.md) | Disk-health патч |
 | [sideweed-health.md](sideweed-health.md) | Write gate |

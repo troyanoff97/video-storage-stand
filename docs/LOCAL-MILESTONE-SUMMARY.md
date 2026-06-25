@@ -37,6 +37,7 @@ Runtime `cassandra/schema.cql` и `docker-compose.yml` для v2 **не меня
 | Артефакт | Статус |
 |----------|--------|
 | План bare-metal disk tests | [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) — **прогон не выполнен** |
+| Enhanced host disk sim | [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md), `scripts/disk-sim/` |
 
 ### sideweed (задача №3, §6)
 
@@ -80,7 +81,7 @@ Fresh clone verification (`video-storage-stand-fresh-metrics`):
 
 - **Alertmanager delivery** не реализован — только metrics + sample rules.
 - **Cassandra production DDL** не применялся — `schema-v2.cql` draft.
-- **Bare-metal disk tests** — план есть, прогон не зафиксирован.
+- **Bare-metal disk tests** — план есть; заказчик не предоставляет host; **enhanced local sim** (`scripts/disk-sim/`) — не заменяет sign-off.
 - **Production rollout** не выполнен.
 - **Direct per-volume probes** и **multi-master health** в sideweed не закрыты.
 
@@ -93,7 +94,7 @@ Fresh clone verification (`video-storage-stand-fresh-metrics`):
 | 1 | **Alerting delivery** — Alertmanager/webhook в prod stack |
 | 2 | **Production audit** — vab→csb migration checklist, vmalert rules |
 | 3 | **Cassandra prod data** — [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) |
-| 4 | **SeaweedFS §4** — [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) на test metal |
+| 4 | **SeaweedFS §4** — [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) локально; bare-metal при появлении host |
 
 ---
 

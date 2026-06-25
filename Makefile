@@ -8,7 +8,8 @@ GO := go
 	chaos-volume-down chaos-volume-up chaos-master-down chaos-master-up \
 	chaos-mount-unavailable chaos-disk-full chaos-disk-readonly chaos-reset \
 	chaos-matrix chaos-recovery chaos-recovery-disk chaos-multi-dir put-v1 up-multi-dir up-persist \
-	test-sideweed test-snapshot test-range-query
+	test-sideweed test-snapshot test-range-query \
+	disk-sim-setup disk-sim-full disk-sim-readonly disk-sim-mount-down disk-sim-recover disk-sim-logs disk-sim-cleanup
 
 help:
 	@echo "Targets:"
@@ -33,6 +34,13 @@ help:
 	@echo "  chaos-recovery       fault -> reset -> assert PUT/GET recovery"
 	@echo "  chaos-recovery-disk  disk ro -> soft reset -> GET baseline (no restart)"
 	@echo "  chaos-multi-dir      per-dir disk health demo (volume1 /data1,/data2)"
+	@echo "  disk-sim-setup       host loopback ext4 dirs (CONFIRM_DISK_SIM=1, sudo)"
+	@echo "  disk-sim-logs        collect stand + mount diagnostics"
+	@echo "  disk-sim-full        simulate disk full on sim mount"
+	@echo "  disk-sim-readonly    simulate read-only remount"
+	@echo "  disk-sim-mount-down  simulate umount fault"
+	@echo "  disk-sim-recover     recover sim mounts"
+	@echo "  disk-sim-cleanup     remove /tmp/seaweedfs-disk-sim"
 	@echo "  up-multi-dir         start stack with multi-dir volume1"
 	@echo "  up-persist           volume1 on named volume (persistent /data)"
 
@@ -162,3 +170,33 @@ chaos-volume1:
 
 test-unit:
 	$(GO) test ./pkg/fragment/... -count=1 -v
+
+DISK_SIM := ./scripts/disk-sim
+
+disk-sim-setup:
+	chmod +x $(DISK_SIM)/*.sh
+	CONFIRM_DISK_SIM=1 $(DISK_SIM)/setup_loopback_dirs.sh
+
+disk-sim-logs:
+	chmod +x $(DISK_SIM)/*.sh
+	$(DISK_SIM)/collect_logs.sh
+
+disk-sim-full:
+	chmod +x $(DISK_SIM)/*.sh
+	CONFIRM_DISK_SIM=1 $(DISK_SIM)/test_disk_full.sh
+
+disk-sim-readonly:
+	chmod +x $(DISK_SIM)/*.sh
+	CONFIRM_DISK_SIM=1 $(DISK_SIM)/test_readonly_mount.sh
+
+disk-sim-mount-down:
+	chmod +x $(DISK_SIM)/*.sh
+	CONFIRM_DISK_SIM=1 $(DISK_SIM)/test_mount_unavailable.sh
+
+disk-sim-recover:
+	chmod +x $(DISK_SIM)/*.sh
+	CONFIRM_DISK_SIM=1 $(DISK_SIM)/recover_mounts.sh
+
+disk-sim-cleanup:
+	chmod +x $(DISK_SIM)/*.sh
+	CONFIRM_DISK_SIM=1 $(DISK_SIM)/cleanup_loopback_dirs.sh
