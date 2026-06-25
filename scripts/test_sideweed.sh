@@ -24,6 +24,24 @@ write_health_fetch() {
   curl -sS -w $'\n%{http_code}' "${SIDEWEED_URL}/v1/write-health" 2>/dev/null
 }
 
+# Args: json_body probe_name want_ok(true|false) want_blocking(true|false)
+write_health_probe_check() {
+  local body="$1" name="$2" want_ok="$3" want_blocking="$4"
+  BODY="$body" NAME="$name" WANT_OK="$want_ok" WANT_BLOCKING="$want_blocking" python3 - <<'PY'
+import json, os, sys
+d = json.loads(os.environ["BODY"])
+p = next((x for x in d.get("probes", []) if x.get("name") == os.environ["NAME"]), None)
+if not p:
+    sys.exit(1)
+ok = bool(p.get("ok"))
+blocking = bool(p.get("blocking"))
+want_ok = os.environ["WANT_OK"] == "true"
+want_blocking = os.environ["WANT_BLOCKING"] == "true"
+if ok != want_ok or blocking != want_blocking:
+    sys.exit(1)
+PY
+}
+
 # Args: expected_http expected_status_regex [timeout_seconds]
 wait_for_write_health() {
   local expect_http="$1"
@@ -192,6 +210,18 @@ else
   fail "GET /v1/write-health baseline not healthy"
 fi
 
+log "==> volume visibility probes (non-blocking)"
+wh_baseline=$(write_health_fetch | sed '$d')
+for vol in volume1 volume2; do
+  if write_health_probe_check "$wh_baseline" "$vol" true false; then
+    pass "probe ${vol} ok=true blocking=false (baseline)"
+  else
+    fail "probe ${vol} missing or wrong at baseline (want visibility-only ok)"
+    echo "$wh_baseline" | head -c 500
+    log ""
+  fi
+done
+
 log "==> master down → WRITE_DEGRADED + PUT 503 <1s"
 sideweed_log_checkpoint
 compose stop master
@@ -279,6 +309,19 @@ else
   write_health_fetch | sed '$d' | head -c 400
   log ""
 fi
+wh_single_vol=$(write_health_fetch | sed '$d')
+if write_health_probe_check "$wh_single_vol" volume1 false false; then
+  pass "probe volume1 ok=false blocking=false (volume1 down, visibility warning)"
+else
+  fail "probe volume1 should show failed visibility-only when volume1 down"
+  echo "$wh_single_vol" | head -c 500
+  log ""
+fi
+if write_health_probe_check "$wh_single_vol" volume2 true false; then
+  pass "probe volume2 ok=true blocking=false (volume2 up)"
+else
+  fail "probe volume2 should stay ok when volume1 down"
+fi
 single_vol_out=$(put_s3 "single-volume-down" || true)
 if echo "$single_vol_out" | grep -q SUCCESS; then
   pass "PUT 200 via sideweed with volume1 down (assign on volume2)"
@@ -299,6 +342,12 @@ if wait_for_write_health 200 healthy 15 >/dev/null; then
   pass "GET /v1/write-health healthy after volume1 recovery"
 else
   fail "/v1/write-health not healthy after volume1 recovery"
+fi
+wh_vol_recovered=$(write_health_fetch | sed '$d')
+if write_health_probe_check "$wh_vol_recovered" volume1 true false; then
+  pass "probe volume1 ok=true after recovery"
+else
+  fail "probe volume1 not recovered in write-health JSON"
 fi
 
 log "==> filer down → WRITE_DEGRADED + PUT 503 <1s"

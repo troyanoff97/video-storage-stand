@@ -118,6 +118,8 @@ services:
       --write-health-check=filer=http://filer:8888/
       --write-health-check=master=http://master:9333/cluster/status
       --write-health-check="assign=http://master:9333/dir/assign?count=1&replication=000|200"
+      --write-health-visibility-check=volume1=http://volume1:8080/healthz
+      --write-health-visibility-check=volume2=http://volume2:8080/healthz
       --address=:8880 http://s3:8333
     ports:
       - "8880:8880"
