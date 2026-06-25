@@ -9,7 +9,7 @@
 
 | Параметр | Значение |
 |----------|----------|
-| **Root repo** | `origin/main` @ **`336b451`**, синхронизирован с remote |
+| **Root repo** | `main` **ahead 4** @ `02ac814` (local, push не выполнялся в этом milestone) |
 | **sideweed submodule** | `origin/master` @ **`2a428d2`**, на remote |
 | **SeaweedFS fork** | pin **`1528e7d`**, без изменений в этом milestone |
 | **Push** | **Выполнен** (см. [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)) |
@@ -45,8 +45,12 @@ Runtime `cassandra/schema.cql` и `docker-compose.yml` для v2 **не меня
 |----------|--------|
 | Write gate | [sideweed-health.md](sideweed-health.md) |
 | `GET /metrics`, `GET /v1/write-health` | sideweed **`2a428d2`** |
-| Sample Prometheus scrape + alert rules | `observability/` |
-| Alerting design | [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) — **delivery не реализован** |
+| Sample Prometheus + **vmalert** rules | `observability/`, [VMALERT-INTEGRATION.md](VMALERT-INTEGRATION.md) |
+| Alerting design | [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) — **delivery не реализован** (rules готовы) |
+| TZ acceptance matrix | [TZ-ACCEPTANCE-MATRIX.md](TZ-ACCEPTANCE-MATRIX.md) |
+| Snapshot migration runbook | [SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md](SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md) — без apply |
+| Customer incident bundle | [CUSTOMER-INCIDENT-DIAGNOSTICS.md](CUSTOMER-INCIDENT-DIAGNOSTICS.md), `scripts/customer/` |
+| Disk-sim E2E overlay | [SEAWEEDFS-DISK-SIM-E2E.md](SEAWEEDFS-DISK-SIM-E2E.md) — design only |
 
 ### Процесс
 
@@ -73,6 +77,8 @@ Fresh clone verification (`video-storage-stand-fresh-metrics`):
 | `GET /v1/write-health` | PASS (`status: healthy`) |
 | `GET /metrics` | PASS (`sideweed_write_health_status`) |
 
+`scripts/disk-sim/` — ручной прогон enhanced disk simulation **PASS** (2026-06-25, см. [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) §12).
+
 `make chaos-matrix` в этом прогоне **не запускался**.
 
 ---
@@ -91,8 +97,8 @@ Fresh clone verification (`video-storage-stand-fresh-metrics`):
 
 | Приоритет | Действие |
 |-----------|----------|
-| 1 | **Alerting delivery** — Alertmanager/webhook в prod stack |
-| 2 | **Production audit** — vab→csb migration checklist, vmalert rules |
+| 1 | **vmalert deploy** на customer stack — [VMALERT-INTEGRATION.md](VMALERT-INTEGRATION.md) |
+| 2 | **vab→csb apply** — [SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md](SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md) (change window) |
 | 3 | **Cassandra prod data** — [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) |
 | 4 | **SeaweedFS §4** — [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) локально; bare-metal при появлении host |
 

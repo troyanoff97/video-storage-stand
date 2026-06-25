@@ -88,6 +88,10 @@ SeaweedFS — **внешний customer fork** (не submodule). Pin: [docs/SEAW
 
 ## Документация
 
+- [TZ-ACCEPTANCE-MATRIX.md](docs/TZ-ACCEPTANCE-MATRIX.md) — матрица приёмки по ТЗ (requirement → evidence → gap)
+- [SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md](docs/SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md) — runbook vab→csb (без apply)
+- [VMALERT-INTEGRATION.md](docs/VMALERT-INTEGRATION.md) — VictoriaMetrics / vmalert для sideweed metrics
+- [CUSTOMER-INCIDENT-DIAGNOSTICS.md](docs/CUSTOMER-INCIDENT-DIAGNOSTICS.md) — read-only сбор данных при инциденте
 - [PRODUCTION-CONFIG-AUDIT.md](docs/PRODUCTION-CONFIG-AUDIT.md) — read-only audit production configs (archives stor1/teye)
 - [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](docs/SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) — host loopback disk-fault simulation (ручной прогон PASS 2026-06-25)
 - [TZ-IMPLEMENTATION-STATUS.md](docs/TZ-IMPLEMENTATION-STATUS.md) — сводный статус по исходному ТЗ (internal)

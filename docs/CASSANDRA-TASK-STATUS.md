@@ -25,8 +25,8 @@ Runtime по-прежнему: `cassandra/schema.cql` → таблица `fragme
 
 | Пункт ТЗ | Статус | Что сделано | Чем подтверждено | Что осталось |
 |----------|--------|-------------|------------------|--------------|
-| **5.1 Bucket separation** | Частично | Stand: `video-fragments`/`csb`; prod: **vab** (archive+camera), **csb** read-ready, **esb** events | `make test`, `make test-snapshot`; [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) | Prod write vab→csb; teye metadata split |
-| **5.2 Snapshot pipeline write/read csb** | Частично | Stand smoke; prod camera snapshots ещё **vab** | `make test-snapshot` PASS | streamserver `bucket_name`; teye `camera_base_url` |
+| **5.1 Bucket separation** | Частично | Stand: `video-fragments`/`csb`; prod: **vab** (archive+camera), **csb** read-ready, **esb** events | `make test`, `make test-snapshot`; [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) | Prod write vab→csb → [SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md](SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md) |
+| **5.2 Snapshot pipeline write/read csb** | Частично | Stand smoke; prod camera snapshots ещё **vab** | `make test-snapshot` PASS | streamserver/teye configs → [SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md](SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md) |
 | **5.3 Cassandra compaction optimization** | Частично (SeaweedFS metadata) | Prod `seaweedfs.filemeta` TWCS; stand `schema-v2.cql` draft | [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) | teye DDL; app-layer tuning; `tablestats` |
 | **5.3 Segment search / range query** | Частично (stand smoke) | `ListFragmentsByTimeRange` (timeuuid bounds); `fragment list`; `list_fragments.sh`; `make test-range-query` | `make test-range-query` PASS, `go test ./...` PASS | `time_bucket` / `schema-v2` для масштаба; согласование с prod query patterns |
 | **5.4 Backward compatibility** | Не реализовано | Описание dual-read/migration в design + комментарии v2; runtime не ломает v1 | Stand smoke tests PASS на v1 schema | Migration job, dual-write, rollback; customer data volume + SLA |

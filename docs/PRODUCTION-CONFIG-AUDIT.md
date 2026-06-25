@@ -251,7 +251,7 @@ Round-robin director на stor1–stor3 `:8333`.
 
 - `GET /metrics` на write sideweed — **Prometheus text format**.
 - VictoriaMetrics / vmagent **принимают** тот же scrape format, что Prometheus.
-- Sample rules в `observability/sideweed-alert-rules.yml` — **PromQL**; для production target — **конвертация/адаптация под vmalert** (синтаксис близкий, но validate на стороне заказчика).
+- Sample rules в `observability/sideweed-alert-rules.yml` (Prometheus) и **`observability/vmalert-sideweed-rules.yml`** (vmalert target) — см. [VMALERT-INTEGRATION.md](VMALERT-INTEGRATION.md).
 - **Alertmanager** — generic option для stand; **production target — vmalert**.
 
 **Delivery alerting для sideweed write gate в production — не реализован** (ни в stand, ни у заказчика по этим архивам).
@@ -288,10 +288,10 @@ Round-robin director на stor1–stor3 `:8333`.
 |---|----------|
 | 1 | Обновить stand docs с production facts (этот документ) |
 | 2 | Сверить stand `observability/` rules с VictoriaMetrics/vmalert target |
-| 3 | Подготовить migration checklist vab→csb (config keys выше) — **без apply** |
+| 3 | Подготовить migration runbook vab→csb — **без apply** → [SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md](SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md) |
 | 4 | Сравнить production `seaweedfs.filemeta` TWCS с stand `schema-v2` draft |
 | 5 | Прогон enhanced disk sim: `scripts/disk-sim/` ([SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md)) |
-| 6 | Добавить vmalert-oriented sample в `observability/` (optional, отдельный commit) |
+| 6 | vmalert sample: `observability/vmalert-sideweed-rules.yml` + [VMALERT-INTEGRATION.md](VMALERT-INTEGRATION.md) |
 | 7 | Продолжить stand tests: `make test-sideweed`, chaos-matrix |
 
 ---

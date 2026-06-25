@@ -12,7 +12,7 @@
 | **Not done** | Не реализовано |
 | **Blocked** | Требуются данные/среда заказчика или bare-metal |
 
-**Последнее обновление:** stand @ `45daa7b`. Production config audit: [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md).
+**Последнее обновление:** stand @ `02ac814` (local, ahead 4). Матрица приёмки: [TZ-ACCEPTANCE-MATRIX.md](TZ-ACCEPTANCE-MATRIX.md). Production config audit: [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md).
 
 ---
 
@@ -89,7 +89,7 @@
 | **6.1 Health checks** | **Partial** | Write probes; `/v1/write-health`; filer-down + **single/all volume** assign behavior in `test-sideweed` | [sideweed-health.md](sideweed-health.md), `make test-sideweed` | Direct per-volume probes; multi-master list; prod multi-S3-GW | — |
 | **6.2 PUT blocking** | **Done** | 503 fail-fast `PUT_BLOCKED` / `write_health_degraded` | `make test-sideweed`, commit `1d9e0f0`, `77eea5c` | — | — |
 | **6.3 Automatic recovery** | **Done** | PUT OK after master/S3/volumes recovery; `WRITE_RECOVERED` | `make test-sideweed` recovery scenarios | Long soak / prod soak | — |
-| **6.4 Logging / alerting** | **Partial** | JSON logs; `/metrics`; sample rules; prod stack: **VictoriaMetrics/Grafana/vmalert** | [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md); [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) §7 | vmalert rules deploy для sideweed; prod write gate rollout | Customer SRE |
+| **6.4 Logging / alerting** | **Partial** | JSON logs; `/metrics`; Prometheus + **vmalert** sample rules; prod stack: **VictoriaMetrics/Grafana/vmalert** | [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md), [VMALERT-INTEGRATION.md](VMALERT-INTEGRATION.md), `observability/vmalert-sideweed-rules.yml` | vmalert **deploy** на customer stack; prod write gate rollout | Customer SRE |
 
 ---
 
@@ -98,7 +98,7 @@
 | Пункт | Статус | Что сделано | Подтверждение | Что осталось | Блокер |
 |-------|--------|-------------|---------------|--------------|--------|
 | **Local stand** | **Done** | `make up`, health, smoke tests | [STAND-TESTING.md](STAND-TESTING.md), fresh clone PASS | — | — |
-| **Disk fault** | **Partial** | `chaos-matrix`, `chaos-multi-dir`; **enhanced host sim** `scripts/disk-sim/` — ручной прогон **PASS** (2026-06-25) | [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) §12 | Bare-metal B–G sign-off | Customer metal host |
+| **Disk fault** | **Partial** | `chaos-matrix`, `chaos-multi-dir`; **enhanced host sim** `scripts/disk-sim/` — ручной прогон **PASS** (2026-06-25) | [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) §12 | Bare-metal B–G sign-off; [SEAWEEDFS-DISK-SIM-E2E.md](SEAWEEDFS-DISK-SIM-E2E.md) overlay | Customer metal host |
 | **Disk recovery** | **Partial** | `chaos-reset`, `make chaos-recovery*` | Scripts + docs | Real disk remount H | Bare metal |
 | **SeaweedFS unavailable** | **Done** | master/volumes/S3 down scenarios | `make test-sideweed`, chaos-matrix | — | — |
 | **sideweed behavior** | **Done** | Write gate + read path separation | `make test-sideweed`, matrix #7 | — | — |
@@ -137,8 +137,8 @@
 
 | Приоритет | Действие |
 |-----------|----------|
-| **A** | **vmalert delivery** — адаптировать `observability/` rules под VictoriaMetrics stack заказчика |
-| **B** | **Snapshot vab→csb** — migration checklist ([PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) §4) |
+| **A** | **vmalert deploy** — customer scrape + `observability/vmalert-sideweed-rules.yml` ([VMALERT-INTEGRATION.md](VMALERT-INTEGRATION.md)) |
+| **B** | **Snapshot vab→csb** — [SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md](SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md) (apply в change window) |
 | **C** | **teye Cassandra** — запросить DDL/query patterns |
 | **D** | **SeaweedFS §4** — прогон [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md); bare-metal когда доступен |
 
@@ -148,6 +148,11 @@
 
 | Документ | Назначение |
 |----------|------------|
+| [TZ-ACCEPTANCE-MATRIX.md](TZ-ACCEPTANCE-MATRIX.md) | Матрица приёмки §4–§8 |
+| [SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md](SNAPSHOT-BUCKET-MIGRATION-RUNBOOK.md) | vab→csb migration (без apply) |
+| [VMALERT-INTEGRATION.md](VMALERT-INTEGRATION.md) | vmalert + VictoriaMetrics |
+| [CUSTOMER-INCIDENT-DIAGNOSTICS.md](CUSTOMER-INCIDENT-DIAGNOSTICS.md) | Incident bundle script |
+| [SEAWEEDFS-DISK-SIM-E2E.md](SEAWEEDFS-DISK-SIM-E2E.md) | E2E disk-sim overlay (design) |
 | [README-STAND.md](../README-STAND.md) | Быстрый старт, архитектура |
 | [CASSANDRA-TASK-STATUS.md](CASSANDRA-TASK-STATUS.md) | Задача №2 §5 |
 | [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md) | Capacity model |
