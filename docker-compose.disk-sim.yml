@@ -1,0 +1,16 @@
+# E2E disk-sim overlay: host loopback ext4 bind mounts → volume1 multi-dir (-dir=/data1,/data2).
+# Requires setup_loopback_dirs.sh under DISK_SIM_ROOT (default /tmp/seaweedfs-disk-sim).
+# Use only via scripts/disk-sim/e2e_*.sh with CONFIRM_DISK_SIM=1.
+services:
+  volume1:
+    command: >
+      volume -ip=volume1 -mserver=master:9333 -ip.bind=0.0.0.0
+      -port=8080 -dir=/data1,/data2 -max=10,10 -dataCenter=dc1 -rack=rack1
+      -metricsPort=9324 -metricsIp=0.0.0.0
+    cap_add:
+      - SYS_ADMIN
+    privileged: true
+    tmpfs: !reset []
+    volumes:
+      - ${DISK_SIM_ROOT:-/tmp/seaweedfs-disk-sim}/mnt/stor1:/data1:rw
+      - ${DISK_SIM_ROOT:-/tmp/seaweedfs-disk-sim}/mnt/stor2:/data2:rw

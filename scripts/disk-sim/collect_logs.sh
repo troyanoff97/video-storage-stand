@@ -24,7 +24,11 @@ save() {
 }
 
 cd "$ROOT_DIR"
-COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.chaos.yml)
+if [[ "${DISK_SIM_E2E:-}" == "1" ]]; then
+  COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.chaos.yml -f docker-compose.disk-sim.yml)
+else
+  COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.chaos.yml)
+fi
 
 save docker-compose-ps.txt "${COMPOSE[@]}" ps
 save docker-compose-logs.txt "${COMPOSE[@]}" logs --no-color --tail=500 \

@@ -38,6 +38,18 @@ CONFIRM_DISK_SIM=1 ./scripts/disk-sim/cleanup_loopback_dirs.sh
 
 Makefile targets: `make disk-sim-setup`, `make disk-sim-logs`, etc.
 
+## E2E overlay (weed volume bind mounts)
+
+After loopback setup, wire host mounts into `volume1` and run faults through production path:
+
+```bash
+CONFIRM_DISK_SIM=1 make disk-sim-e2e-up
+CONFIRM_DISK_SIM=1 make disk-sim-e2e-test
+CONFIRM_DISK_SIM=1 make disk-sim-e2e-down
+```
+
+See [docs/SEAWEEDFS-DISK-SIM-E2E.md](../../docs/SEAWEEDFS-DISK-SIM-E2E.md).
+
 ## Safety
 
 - All mount paths must stay under `DISK_SIM_ROOT` (`safe_path` guard).

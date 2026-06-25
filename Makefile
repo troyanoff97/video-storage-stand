@@ -9,7 +9,8 @@ GO := go
 	chaos-mount-unavailable chaos-disk-full chaos-disk-readonly chaos-reset \
 	chaos-matrix chaos-recovery chaos-recovery-disk chaos-multi-dir put-v1 up-multi-dir up-persist \
 	test-sideweed test-snapshot test-range-query \
-	disk-sim-setup disk-sim-full disk-sim-readonly disk-sim-mount-down disk-sim-recover disk-sim-logs disk-sim-cleanup
+	disk-sim-setup disk-sim-full disk-sim-readonly disk-sim-mount-down disk-sim-recover disk-sim-logs disk-sim-cleanup \
+	disk-sim-e2e-up disk-sim-e2e-test disk-sim-e2e-down
 
 help:
 	@echo "Targets:"
@@ -41,6 +42,9 @@ help:
 	@echo "  disk-sim-mount-down  simulate umount fault"
 	@echo "  disk-sim-recover     recover sim mounts"
 	@echo "  disk-sim-cleanup     remove /tmp/seaweedfs-disk-sim"
+	@echo "  disk-sim-e2e-up    E2E: volume1 bind-mount loopback dirs (CONFIRM_DISK_SIM=1)"
+	@echo "  disk-sim-e2e-test  E2E: fault scenarios via production path"
+	@echo "  disk-sim-e2e-down  restore volume1 to chaos tmpfs overlay"
 	@echo "  up-multi-dir         start stack with multi-dir volume1"
 	@echo "  up-persist           volume1 on named volume (persistent /data)"
 
@@ -200,3 +204,15 @@ disk-sim-recover:
 disk-sim-cleanup:
 	chmod +x $(DISK_SIM)/*.sh
 	CONFIRM_DISK_SIM=1 $(DISK_SIM)/cleanup_loopback_dirs.sh
+
+disk-sim-e2e-up:
+	chmod +x $(DISK_SIM)/*.sh
+	CONFIRM_DISK_SIM=1 $(DISK_SIM)/e2e_up.sh
+
+disk-sim-e2e-test:
+	chmod +x $(DISK_SIM)/*.sh
+	CONFIRM_DISK_SIM=1 $(DISK_SIM)/e2e_test.sh
+
+disk-sim-e2e-down:
+	chmod +x $(DISK_SIM)/*.sh
+	CONFIRM_DISK_SIM=1 $(DISK_SIM)/e2e_down.sh
