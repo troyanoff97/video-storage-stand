@@ -9,11 +9,13 @@ INCIDENT_SINCE="${INCIDENT_SINCE:-}"
 INCIDENT_UNTIL="${INCIDENT_UNTIL:-}"
 SIDEWEED_URL="${SIDEWEED_URL:-}"
 SEAWEED_MASTER_URL="${SEAWEED_MASTER_URL:-}"
-OUTPUT_DIR="${OUTPUT_DIR:-/tmp/seaweedfs-incident-$(date -u +%Y%m%dT%H%M%SZ)}"
+OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
+TS="$(date -u +%Y%m%dT%H%M%SZ)"
+COLLECT_DIR="${OUTPUT_BASE}/seaweedfs-incident-${TS}"
 
-mkdir -p "${OUTPUT_DIR}"
-BUNDLE="${OUTPUT_DIR}/seaweedfs-incident-bundle.tar.gz"
-LOG="${OUTPUT_DIR}/collect.log"
+mkdir -p "${COLLECT_DIR}"
+BUNDLE="${OUTPUT_BASE}/seaweedfs-incident-${TS}.tar.gz"
+LOG="${COLLECT_DIR}/collect.log"
 
 log() { echo "[$(date -Iseconds)] $*" | tee -a "${LOG}"; }
 warn() { log "WARNING: $*"; }
@@ -57,7 +59,7 @@ run_journal() {
   [[ -n "${since}" ]] && args+=(--since "${since}")
   [[ -n "${until}" ]] && args+=(--until "${until}")
   log "==> journalctl ${unit} (since=${since:-all} until=${until:-now})"
-  if ! journalctl "${args[@]}" >>"${OUTPUT_DIR}/journal-${unit}.log" 2>>"${LOG}"; then
+  if ! journalctl "${args[@]}" >>"${COLLECT_DIR}/journal-${unit}.log" 2>>"${LOG}"; then
     warn "journalctl ${unit} failed"
   fi
 }
@@ -65,7 +67,7 @@ run_journal() {
 curl_safe() {
   local name="$1"
   local url="$2"
-  local out="${OUTPUT_DIR}/${name}"
+  local out="${COLLECT_DIR}/${name}"
   if ! command -v curl >/dev/null 2>&1; then
     warn "curl not available for ${name}"
     return 0
@@ -80,7 +82,7 @@ curl_safe() {
 }
 
 log "Starting SeaweedFS incident bundle collection"
-log "OUTPUT_DIR=${OUTPUT_DIR}"
+log "COLLECT_DIR=${COLLECT_DIR}"
 
 {
   echo "=== hostname ==="
@@ -89,7 +91,7 @@ log "OUTPUT_DIR=${OUTPUT_DIR}"
   date -Iseconds
   echo "=== uptime ==="
   uptime
-} >"${OUTPUT_DIR}/host.txt"
+} >"${COLLECT_DIR}/host.txt"
 
 run_optional "uptime" uptime
 
@@ -107,10 +109,10 @@ run_journal "weed-filer" "" ""
 
 if command -v dmesg >/dev/null 2>&1; then
   log "==> dmesg -T"
-  if dmesg -T >"${OUTPUT_DIR}/dmesg.txt" 2>>"${LOG}"; then
+  if dmesg -T >"${COLLECT_DIR}/dmesg.txt" 2>>"${LOG}"; then
     :
   else
-    dmesg >"${OUTPUT_DIR}/dmesg.txt" 2>>"${LOG}" || warn "dmesg failed"
+    dmesg >"${COLLECT_DIR}/dmesg.txt" 2>>"${LOG}" || warn "dmesg failed"
   fi
 else
   warn "dmesg not available"
@@ -120,9 +122,9 @@ for bin in mount findmnt df lsblk; do
   if command -v "${bin}" >/dev/null 2>&1; then
     log "==> ${bin}"
     case "${bin}" in
-      findmnt) findmnt -a >"${OUTPUT_DIR}/${bin}.txt" 2>>"${LOG}" || warn "findmnt failed" ;;
-      df) df -h >"${OUTPUT_DIR}/${bin}.txt" 2>>"${LOG}" || warn "df failed" ;;
-      *) "${bin}" >"${OUTPUT_DIR}/${bin}.txt" 2>>"${LOG}" || warn "${bin} failed" ;;
+      findmnt) findmnt -a >"${COLLECT_DIR}/${bin}.txt" 2>>"${LOG}" || warn "findmnt failed" ;;
+      df) df -h >"${COLLECT_DIR}/${bin}.txt" 2>>"${LOG}" || warn "df failed" ;;
+      *) "${bin}" >"${COLLECT_DIR}/${bin}.txt" 2>>"${LOG}" || warn "${bin} failed" ;;
     esac
   else
     warn "${bin} not found"
@@ -135,11 +137,11 @@ if [[ -n "${SIDEWEED_URL}" ]]; then
   if command -v curl >/dev/null 2>&1; then
     log "==> sideweed metrics (sideweed_* only)"
     if curl -fsS --connect-timeout 5 --max-time 30 "${base}/metrics" 2>>"${LOG}" \
-      | grep '^sideweed_' >"${OUTPUT_DIR}/sideweed-metrics.txt"; then
+      | grep '^sideweed_' >"${COLLECT_DIR}/sideweed-metrics.txt"; then
       :
     else
       warn "sideweed metrics scrape failed"
-      rm -f "${OUTPUT_DIR}/sideweed-metrics.txt"
+      rm -f "${COLLECT_DIR}/sideweed-metrics.txt"
     fi
   fi
 else
@@ -154,10 +156,12 @@ else
   warn "SEAWEED_MASTER_URL not set — skipping master HTTP checks"
 fi
 
-log "==> creating tar.gz bundle"
-tar -czf "${BUNDLE}" -C "${OUTPUT_DIR}" \
-  --exclude="$(basename "${BUNDLE}")" \
-  . 2>>"${LOG}" || warn "tar failed"
+printf '[%s] ==> creating tar.gz bundle\n' "$(date -Iseconds)" >>"${LOG}"
+tar_rc=0
+tar -czf "${BUNDLE}" -C "${COLLECT_DIR}" . >>"${LOG}" 2>&1 || tar_rc=$?
+if (( tar_rc != 0 )); then
+  warn "tar failed (exit ${tar_rc})"
+fi
 
 log "Bundle: ${BUNDLE}"
 log "Done. Send configs separately with secrets redacted."

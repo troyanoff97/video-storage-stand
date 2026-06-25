@@ -44,7 +44,7 @@
 | `INCIDENT_UNTIL` | journalctl `--until` для weed-volume |
 | `SIDEWEED_URL` | Base URL write sideweed (напр. `http://127.0.0.1:9000`) |
 | `SEAWEED_MASTER_URL` | Base URL master (напр. `http://127.0.0.1:9333`) |
-| `OUTPUT_DIR` | Каталог сбора (default: `/tmp/seaweedfs-incident-<UTC timestamp>`) |
+| `OUTPUT_DIR` | Parent directory for collection (default: `/tmp`); files go to `OUTPUT_DIR/seaweedfs-incident-<UTC>/` |
 
 ---
 
@@ -58,7 +58,7 @@ export SEAWEED_MASTER_URL="http://127.0.0.1:9333"
 export OUTPUT_DIR="/tmp/incident-001"
 
 bash scripts/customer/collect_seaweedfs_incident_bundle.sh
-# Результат: ${OUTPUT_DIR}/seaweedfs-incident-bundle.tar.gz
+# Результат: ${OUTPUT_DIR}/seaweedfs-incident-<UTC>.tar.gz (+ каталог с raw files)
 ```
 
 На stand (docker, без systemd units):
