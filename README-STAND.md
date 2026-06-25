@@ -89,7 +89,7 @@ SeaweedFS — **внешний customer fork** (не submodule). Pin: [docs/SEAW
 ## Документация
 
 - [PRODUCTION-CONFIG-AUDIT.md](docs/PRODUCTION-CONFIG-AUDIT.md) — read-only audit production configs (archives stor1/teye)
-- [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](docs/SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) — host loopback disk-fault simulation
+- [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](docs/SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) — host loopback disk-fault simulation (ручной прогон PASS 2026-06-25)
 - [TZ-IMPLEMENTATION-STATUS.md](docs/TZ-IMPLEMENTATION-STATUS.md) — сводный статус по исходному ТЗ (internal)
 - [CASSANDRA-TASK-STATUS.md](docs/CASSANDRA-TASK-STATUS.md) — статус Задачи №2 (Cassandra §5)
 - [STAND-TESTING.md](docs/STAND-TESTING.md)

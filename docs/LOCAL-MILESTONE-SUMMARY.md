@@ -37,7 +37,7 @@ Runtime `cassandra/schema.cql` и `docker-compose.yml` для v2 **не меня
 | Артефакт | Статус |
 |----------|--------|
 | План bare-metal disk tests | [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) — **прогон не выполнен** |
-| Enhanced host disk sim | [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md), `scripts/disk-sim/` |
+| Enhanced host disk sim | [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md), `scripts/disk-sim/` — **ручной прогон PASS** (2026-06-25) |
 
 ### sideweed (задача №3, §6)
 

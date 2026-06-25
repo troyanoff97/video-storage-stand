@@ -365,8 +365,8 @@ docker logs <volume-container> 2>&1 | grep -iE 'disk location|unhealthy|recovere
 | Техника | Статус |
 |---------|--------|
 | Loopback ext4 (`setup_loopback_dirs.sh`) | **Реализовано** |
-| disk full / ro / umount / recover | **Реализовано** |
-| `collect_logs.sh` | **Реализовано** |
+| disk full / ro / umount / recover | **Реализовано**, **ручной прогон PASS** (2026-06-25) |
+| `collect_logs.sh` | **Реализовано**, **ручной прогон PASS** |
 | dm-error | Документировано; auto-run **нет** |
 
 **Не заменяет** production bare-metal sign-off. Заказчик не предоставляет isolated node — destructive prod tests **запрещены**; только diagnostics / log collection или isolated test host.

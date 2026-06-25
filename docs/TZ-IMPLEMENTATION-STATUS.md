@@ -98,7 +98,7 @@
 | Пункт | Статус | Что сделано | Подтверждение | Что осталось | Блокер |
 |-------|--------|-------------|---------------|--------------|--------|
 | **Local stand** | **Done** | `make up`, health, smoke tests | [STAND-TESTING.md](STAND-TESTING.md), fresh clone PASS | — | — |
-| **Disk fault** | **Partial** | `chaos-matrix`, `chaos-multi-dir`; **enhanced host sim** `scripts/disk-sim/` | [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) | Bare-metal B–G sign-off | Customer metal host |
+| **Disk fault** | **Partial** | `chaos-matrix`, `chaos-multi-dir`; **enhanced host sim** `scripts/disk-sim/` — ручной прогон **PASS** (2026-06-25) | [SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](SEAWEEDFS-ENHANCED-DISK-SIMULATION.md) §12 | Bare-metal B–G sign-off | Customer metal host |
 | **Disk recovery** | **Partial** | `chaos-reset`, `make chaos-recovery*` | Scripts + docs | Real disk remount H | Bare metal |
 | **SeaweedFS unavailable** | **Done** | master/volumes/S3 down scenarios | `make test-sideweed`, chaos-matrix | — | — |
 | **sideweed behavior** | **Done** | Write gate + read path separation | `make test-sideweed`, matrix #7 | — | — |
