@@ -3,12 +3,14 @@
 Документ фиксирует **текущее состояние stand repo**, риски и **целевую архитектуру** по ТЗ §5.1–5.4.  
 Это **design proposal** — не применять DDL и runtime без production DDL и согласования с заказчиком.
 
-**Stand repo:** `git@github.com:troyanoff97/video-storage-stand.git`  
+**Stand repo:** `origin/main` @ `336b451`.  
 **Связанные документы:** [TZ-DEVIATIONS.md](TZ-DEVIATIONS.md), [PRODUCTION-DEPLOY.md](PRODUCTION-DEPLOY.md), [CASSANDRA-TASK-STATUS.md](CASSANDRA-TASK-STATUS.md) (краткий статус §5)
+
+**Runtime:** `schema.cql` без изменений; `schema-v2.cql` — draft, не в compose. Production DDL **не применялся**.
 
 ---
 
-## 1. Current state
+## 1. Текущее состояние
 
 ### 1.1 Cassandra-схема (stand)
 

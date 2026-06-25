@@ -1,7 +1,7 @@
 # Sample Prometheus alert rules for sideweed write gate metrics (reference only).
-# NOT applied by the stand runtime — merge into production Prometheus/Alertmanager.
+# Пример правил — НЕ применяется stand runtime; встройте в prod Prometheus/Alertmanager.
 #
-# Validate:
+# Проверка:
 #   promtool check rules observability/sideweed-alert-rules.yml
 #
 # Thresholds are conservative starting points; tune per environment and traffic.

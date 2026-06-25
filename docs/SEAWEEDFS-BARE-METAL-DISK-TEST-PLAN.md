@@ -1,7 +1,9 @@
-# SeaweedFS bare-metal disk fault test plan (ТЗ §4.2–4.5)
+# План bare-metal disk fault tests для SeaweedFS (ТЗ §4.2–4.5)
 
 Практический план проверки отказа диска и изоляции **на физическом хосте / отдельном volume node**.  
 **Не письмо заказчику** — внутренний runbook для acceptance Задачи №1.
+
+**Статус выполнения:** план готов; **прогон на metal не выполнен и не зафиксирован**. Docker stand покрывает частично через `make chaos-matrix` / `chaos-multi-dir` (с ограничениями tmpfs).
 
 **Связанные документы:**
 
@@ -14,7 +16,7 @@
 
 ---
 
-## 1. Purpose
+## 1. Назначение
 
 ### Зачем bare-metal test
 
@@ -44,13 +46,13 @@ Bare-metal test подтверждает, что поведение на product
 
 ---
 
-## 2. Preconditions
+## 2. Предусловия
 
 | # | Требование |
 |---|------------|
 | P1 | **Отдельный test host** или выделенный volume node — **не production** |
 | P2 | SeaweedFS fork `git@github.com:troyanoff97/seaweedfs.git`, branch `feat/volume-disk-health-isolation`, commit **`1528e7d`** |
-| P3 | Stand repo для client smoke (опционально): текущая ветка `main` ahead 7+ |
+| P3 | Stand repo для client smoke (опционально): `origin/main` @ **`336b451`** |
 | P4 | Минимум **2 writable locations** на одном volume node (`-dir=/mnt/weed-a,/mnt/weed-b`) **или** 2 volume nodes (volume1 healthy, volume2 fault target) |
 | P5 | Возможность **безопасно** umount/remount/ro/fill **тестового** диска без production data |
 | P6 | Master, filer, S3 Gateway, sideweed доступны по production-like path |

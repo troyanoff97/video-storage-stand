@@ -48,6 +48,8 @@ SeaweedFS — **внешний customer fork** (не submodule). Pin: [docs/SEAW
 | volume1/2 | 8080/8081 | blobs (internal) |
 | cassandra | 9042 | индекс фрагментов на стенде |
 
+**Observability (write sideweed):** `GET :8880/v1/write-health`, `GET :8880/metrics` — см. [docs/SIDEWEED-ALERTING.md](docs/SIDEWEED-ALERTING.md).
+
 ## Команды
 
 ```bash
@@ -79,7 +81,7 @@ SeaweedFS — **внешний customer fork** (не submodule). Pin: [docs/SEAW
 | `make test-range-query` | Smoke: Cassandra list by camera + time range |
 | `make check-seaweedfs` | Проверка SeaweedFS fork на pin `1528e7d` |
 | `make init-seaweedfs` | Клон customer fork (`SEAWEEDFS_REPO_URL`) |
-| `make test-sideweed` | Write gate sideweed при деградации |
+| `make test-sideweed` | Write gate sideweed при деградации (30 сценариев) |
 | `make chaos-multi-dir` | Disk health через S3 path |
 | `make chaos-matrix` | Матрица отказов через S3 path |
 | `make put-v1` | **Debug** — редирект на `scripts/debug/put_to_volume1.sh` |

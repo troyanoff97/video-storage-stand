@@ -9,7 +9,7 @@ make test              # PUT sideweed→S3, GET HAProxy→S3
 make test-go
 make test-snapshot     # snapshot PUT + GET через bucket csb (отдельный smoke)
 make test-range-query  # Cassandra list по camera + time range (отдельный smoke)
-make test-sideweed     # блокировка PUT при unhealthy master/volumes/S3
+make test-sideweed     # write gate: 30 сценариев (metrics, write-health, chaos)
 ./scripts/verify_production_path.sh   # доказательство по логам
 ```
 
@@ -40,7 +40,7 @@ make test-sideweed     # блокировка PUT при unhealthy master/volume
 | `make test` | Production PUT + GET (archive, bucket video-fragments) |
 | `make test-snapshot` | Snapshot PUT + GET (bucket csb); metadata в `fragments`, schema-v2 не runtime |
 | `make test-range-query` | LIST fragments по camera + time range (runtime schema, timeuuid bounds) |
-| `make test-sideweed` | Write gate sideweed: PUT 503 при деградации кластера |
+| `make test-sideweed` | Write gate: master/volumes/S3/filer down, metrics, `/v1/write-health`, single-volume-down | **PASS=30** |
 | `make chaos-multi-dir` | Отказ /data1 через S3 PUT |
 | `make chaos-matrix` | Матрица отказов через S3 PUT |
 
@@ -60,6 +60,15 @@ Direct volume PUT в acceptance-тестах **не** используется.
 | filer | 8888 | filer |
 
 Учётные данные: `stand_access_key` / `stand_secret_key`
+
+## Observability (write sideweed)
+
+| Endpoint | Назначение |
+|----------|------------|
+| `GET http://localhost:8880/v1/write-health` | JSON: aggregate status + per-probe results (200 healthy / 503 degraded) |
+| `GET http://localhost:8880/metrics` | Prometheus metrics (`sideweed_write_health_status`, …) |
+
+Sample scrape config и alert rules: `observability/`, см. [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md). **Alertmanager delivery не подключён** к `docker-compose.yml`.
 
 ## Replication
 

@@ -3,30 +3,42 @@
 Порядок публикации: **SeaweedFS fork** (уже на remote) → **sideweed fork** → **stand repo**.  
 **Не пушить:** `targetaidev/sideweed`, `seaweedfs/seaweedfs` (upstream push URL в локальном clone — `DISABLED`).
 
-## Current local push readiness — sideweed metrics batch
+## Статус публикации (актуально)
 
-**Статус:** push **не выполнялся** (документ только для будущего прогона).  
-**Актуально на:** root `77bd2cd`, sideweed `7eadd37`.
+**Push выполнен.** Fresh clone verification — **PASS**.
 
-### 1. Current local state
+| Repo | Remote | HEAD | Примечание |
+|------|--------|------|------------|
+| **root** | `origin/main` | **`336b451`** | синхронизирован |
+| **sideweed** | `origin/master` | **`2a428d2`** | `/v1/write-health`, metrics |
+| **submodule pointer** | — | **`2a428d2`** | `git ls-tree HEAD sideweed` |
+| **SeaweedFS fork** | pin | **`1528e7d`** | без изменений в batch |
 
-| Repo | HEAD | vs remote | Working tree | Примечание |
-|------|------|-----------|--------------|------------|
-| **root** (`video-storage-stand`) | `77bd2cd` | **ahead 12** | clean | `docs: add sideweed alerting examples` |
-| **sideweed** (submodule) | `7eadd37` | **ahead 1** | clean | `feat: expose Prometheus metrics` |
-| **root submodule pointer** | `7eadd37` | — | — | `git ls-tree HEAD sideweed` |
-| **sideweed `origin/master`** | `551df0b` | on remote | — | metrics commit **ещё не** на remote |
-| **SeaweedFS fork** | pin `1528e7d` | unchanged | — | уже опубликован, push не нужен для этого batch |
+**Fresh clone:** `video-storage-stand-fresh-metrics` @ root `336b451`, sideweed `2a428d2`, seaweedfs `1528e7d`; полный suite **PASS**, `make test-sideweed` **30/30**.
 
-Ключевые локальные commits в batch: sideweed `7eadd37`, root `adc21e0` (metrics pointer), `77bd2cd` (observability sample configs).
+---
 
-### 2. Why push order matters
+## Исторический batch: sideweed metrics + write-health (завершён)
 
-- Root `77bd2cd` фиксирует submodule commit **`7eadd37`**.
-- Если push root **до** push sideweed, `git submodule update --init` на fresh clone не найдёт `7eadd37` на `origin/master` → clone **сломается**.
+Ниже — порядок и проверки, использованные при публикации batch `7eadd37` → `2a428d2` и root `77bd2cd` → `336b451`. Для повторного push новых commits — тот же порядок: **sideweed first → verify remote → root second**.
+
+### 1. Состояние на момент batch (архив)
+
+| Repo | HEAD | vs remote (до push) | Примечание |
+|------|------|---------------------|------------|
+| **root** | `336b451` | было ahead 17 | `test: single-volume-down scenario` |
+| **sideweed** | `2a428d2` | было ahead 2 | `feat: GET /v1/write-health` |
+| **SeaweedFS fork** | pin `1528e7d` | unchanged | push не нужен |
+
+Ключевые commits: sideweed `7eadd37` (metrics), `2a428d2` (write-health); root `adc21e0`, `77bd2cd`, `e977e64`, `f0fd8e9`, `336b451`.
+
+### 2. Почему важен порядок push
+
+- Root `336b451` фиксирует submodule commit **`2a428d2`**.
+- Если push root **до** push sideweed, `git submodule update --init` на fresh clone не найдёт нужный commit на `origin/master` → clone **сломается**.
 - **Безопасный порядок:** sideweed first → verify remote → root second.
 
-### 3. Pre-push checks (локально, перед push)
+### 3. Pre-push checks (перед любым новым push)
 
 Оба repo должны быть **clean**. Затем на root:
 
@@ -35,7 +47,7 @@ git status -sb
 git -C sideweed status -sb
 git submodule status
 git ls-tree HEAD sideweed
-# ожидается: 7eadd37a7c32623227ece32db51e77d64f8ae9b2
+# ожидается: 2a428d2... (или актуальный pointer)
 
 make health
 make test
@@ -46,11 +58,9 @@ make test-sideweed
 go test ./...
 ```
 
-Ожидание: все команды **PASS** (test-sideweed: PASS=13 FAIL=0).
+Ожидание: все команды **PASS** (`make test-sideweed`: PASS=30 FAIL=0).
 
-### 4. Push commands — **DO NOT RUN NOW**
-
-Выполнять только после явного решения о push и успешных pre-push checks.
+### 4. Push commands (шаблон)
 
 **Sideweed first:**
 
@@ -58,9 +68,9 @@ go test ./...
 cd sideweed
 git push origin master
 git ls-remote origin master
-# ожидается: 7eadd37... на refs/heads/master
+# ожидается: актуальный sideweed HEAD на refs/heads/master
 
-git branch -r --contains 7eadd37
+git branch -r --contains <sideweed-sha>
 # ожидается: origin/master
 ```
 
@@ -70,7 +80,7 @@ git branch -r --contains 7eadd37
 cd ..
 git push origin main
 git ls-remote origin main
-# ожидается: 77bd2cd... на refs/heads/main
+# ожидается: актуальный root HEAD на refs/heads/main
 ```
 
 ### 5. Fresh clone verification (после push)
@@ -82,7 +92,7 @@ git clone git@github.com:troyanoff97/video-storage-stand.git video-storage-stand
 cd video-storage-stand-fresh-metrics
 git submodule update --init --recursive
 git -C sideweed rev-parse --short HEAD
-# ожидается: 7eadd37
+# ожидается: 2a428d2 (или актуальный pointer)
 
 SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs
 make check-seaweedfs
@@ -99,12 +109,12 @@ curl -fsS http://localhost:8880/metrics | grep sideweed_write_health_status
 curl -fsS http://localhost:8880/v1/write-health | grep '"status":"healthy"'
 ```
 
-### 6. Known risks
+### 6. Известные риски
 
-| Risk | Mitigation |
+| Риск | Mitigation |
 |------|------------|
-| Root pushed before sideweed | **Всегда** push sideweed first; verify `git branch -r --contains 7eadd37` |
-| Fresh clone fails mid-batch | Не push root, пока sideweed `7eadd37` не на remote |
+| Root pushed before sideweed | **Всегда** push sideweed first; verify `git branch -r --contains <sha>` |
+| Fresh clone fails mid-batch | Не push root, пока sideweed commit не на remote |
 | Port conflict (two stands) | Один stand на хост; для fresh clone — другая директория, `docker compose down` в старом stand (без `-v`) |
 | SeaweedFS upstream accidental push | `git remote set-url --push upstream DISABLED` в локальном `seaweedfs/` |
 | Alertmanager delivery | **Не реализовано** — только metrics + sample rules в `observability/` |
@@ -129,8 +139,7 @@ Go module stand repo: `github.com/troyanoff97/video-storage-stand`.
 
 ## A. Sideweed → `troyanoff97/sideweed`
 
-**Исторически:** `551df0b` уже был на remote (write gate).  
-**Текущий batch:** локально `7eadd37` (metrics) — см. раздел **Current local push readiness** выше.
+**На remote:** `origin/master` @ **`2a428d2`** (write gate + metrics + `/v1/write-health`).
 
 ```bash
 cd sideweed
@@ -139,7 +148,7 @@ git remote -v
 
 git push origin master
 git ls-remote origin master
-git branch -r --contains 7eadd37
+git branch -r --contains 2a428d2
 ```
 
 ---
@@ -173,8 +182,7 @@ git remote set-url --push upstream DISABLED
 
 ## C. Root stand repo
 
-**Исторически:** `main` уже на remote @ более раннем pointer.  
-**Текущий batch:** push после sideweed `7eadd37`; ожидаемый submodule pointer **`7eadd37`**.
+**На remote:** `origin/main` @ **`336b451`**.
 
 ```bash
 git remote add origin git@github.com:troyanoff97/video-storage-stand.git
@@ -182,23 +190,22 @@ git push -u origin main
 git ls-remote origin main
 ```
 
-Submodule pointer после push: `sideweed` @ **`7eadd37`**.
+Submodule pointer: `sideweed` @ **`2a428d2`**.
 
 ---
 
 ## D. Fresh clone (проверка воспроизводимости)
 
-**До push metrics batch:** remote submodule остаётся на `551df0b` — fresh clone **не** включает `7eadd37`.  
-**После push:** полный прогон — в разделе **Current local push readiness → §5**.
+**Подтверждено:** clone `video-storage-stand-fresh-metrics` — root `336b451`, sideweed `2a428d2`, seaweedfs `1528e7d`; suite PASS, `test-sideweed` 30/30.
 
-Краткий шаблон (обновить ожидаемый SHA после push):
+Шаблон для повторной проверки:
 
 ```bash
 git clone git@github.com:troyanoff97/video-storage-stand.git work2-fresh
 cd work2-fresh
 git submodule update --init --recursive
 git -C sideweed rev-parse --short HEAD
-# после metrics push ожидается: 7eadd37
+# ожидается: 2a428d2
 
 SEAWEEDFS_REPO_URL=git@github.com:troyanoff97/seaweedfs.git make init-seaweedfs
 make check-seaweedfs

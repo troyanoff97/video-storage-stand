@@ -118,7 +118,7 @@ curl -fsS http://localhost:8880/metrics | grep sideweed_write_health_status
 
 Ключевые метрики write gate: `sideweed_write_health_status`, `sideweed_write_degraded_total{reason}`, `sideweed_write_recovered_total`, `sideweed_put_blocked_total{reason}`, `sideweed_backend_up{backend}`, `sideweed_health_probe_duration_seconds`.
 
-Подробнее: [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) (Phase 1 implemented; Alertmanager rules — proposal).
+Подробнее: [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) (metrics реализованы; Alertmanager delivery — pending).
 
 ## Aggregate write readiness (volume nodes)
 
@@ -137,7 +137,7 @@ Direct per-volume `/healthz` probes **не** входят в production write si
 ## Тестирование
 
 ```bash
-make test-sideweed    # integration: 503 <1s, reason logs, recovery
+make test-sideweed    # integration: 30 сценариев (503, recovery, metrics, write-health)
 cd sideweed && go test -v ./...   # unit tests
 ```
 

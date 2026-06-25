@@ -12,42 +12,43 @@
 | **Not done** | Не реализовано |
 | **Blocked** | Требуются данные/среда заказчика или bare-metal |
 
-**Последнее обновление:** stand @ `77bd2cd`, branch **ahead 12** (push не выполнялся). Push readiness: [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md) (metrics batch).
+**Последнее обновление:** stand @ `336b451`, **синхронизирован с `origin/main`**. Fresh clone: **PASS** ([PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)).
 
 ---
 
-## 1. Purpose
+## 1. Назначение
 
 Документ отвечает на вопрос: **что из исходного ТЗ уже сделано на stand**, что остаётся, и что заблокировано без production.  
 Детали по задачам — в linked docs (см. §6).
 
 ---
 
-## 2. Verified baseline
+## 2. Подтверждённый baseline
 
-Подтверждено на локальном stand (последние прогоны):
+Подтверждено на stand и **fresh clone** (`video-storage-stand-fresh-metrics`):
 
 | Область | Статус |
 |---------|--------|
-| Fresh clone | Ранее **PASS**; **сейчас** remote-only clone неполон до push sideweed `7eadd37` + root (см. [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)) |
+| Fresh clone | **PASS** — root `336b451`, sideweed `2a428d2`, seaweedfs `1528e7d` |
 | Reproducibility | `make init-seaweedfs`, `make check-seaweedfs` (pin **`1528e7d`**) |
-| Root repo | `github.com/troyanoff97/video-storage-stand` |
+| Root repo | `github.com/troyanoff97/video-storage-stand` @ `origin/main` |
 | SeaweedFS fork | `git@github.com:troyanoff97/seaweedfs.git`, branch `feat/volume-disk-health-isolation` |
-| sideweed fork | `github.com/troyanoff97/sideweed` (submodule) |
+| sideweed fork | submodule @ **`2a428d2`** на `origin/master` |
 | Production-like path | sideweed → S3 → filer/master → volumes; read via HAProxy |
 
-**Key tests (PASS на чистом `work2` стеке):**
+**Ключевые тесты (PASS):**
 
-| Command | Result |
-|---------|--------|
+| Команда | Результат |
+|---------|-----------|
 | `go test ./...` | PASS |
 | `make test` | PASS |
 | `make verify-path` | PASS |
-| `make test-sideweed` | PASS (13/13; metrics check included) |
+| `make test-sideweed` | PASS (**30/30**) |
 | `make test-snapshot` | PASS |
 | `make test-range-query` | PASS |
+| `GET /v1/write-health`, `GET /metrics` | PASS на write sideweed |
 
-**Push:** последние **12** локальных commits **не pushed** к `origin/main`. Порядок и fresh-clone plan: [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md) — push **не выполнялся**.
+**Push:** root и sideweed **опубликованы** на GitHub (см. [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)).
 
 ---
 
@@ -108,42 +109,41 @@
 
 | Пункт | Статус | Что сделано | Подтверждение | Что осталось | Блокер |
 |-------|--------|-------------|---------------|--------------|--------|
-| **Source code (stand)** | **Done** | Repo + `pkg/fragment`, scripts, compose | README, tests PASS | Push ahead 8 commits | Push policy |
+| **Source code (stand)** | **Done** | Repo + `pkg/fragment`, scripts, compose | README, tests PASS, `origin/main` | — | — |
 | **SeaweedFS fork** | **Done** | Patched fork, pin, init scripts | [seaweedfs-customer-fork.md](seaweedfs-customer-fork.md) | Customer deploy on metal | — |
-| **sideweed changes** | **Done** | Fork in submodule, write gate | [sideweed-health.md](sideweed-health.md) | Prod LB configs | — |
+| **sideweed changes** | **Done** | Fork submodule: write gate, `/metrics`, `/v1/write-health` @ `2a428d2` | [sideweed-health.md](sideweed-health.md), `make test-sideweed` | Prod LB configs; per-volume probes | — |
 | **Documentation** | **Done** | README, TZ deviations, task status docs, load model, checklists | `docs/*` | External customer report | — |
 | **Build / deploy / test instructions** | **Done** | Makefile, [PRODUCTION-DEPLOY.md](PRODUCTION-DEPLOY.md), [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md) | `make help`, STAND-TESTING | Production rollout runbook execution | Customer env |
 
 ---
 
-## 4. Current limitations
+## 4. Текущие ограничения
 
 - **Docker / tmpfs:** disk mount/ro/full часто **WARN/SKIP** в chaos-matrix; не заменяет physical disk (§4.2–4.5).
-- **No production Cassandra DDL** — `schema-v2.cql` experimental, не runtime.
-- **No streamserver / backend / LB** production configs для snapshots/archive.
+- **Production Cassandra DDL** не применялся — `schema-v2.cql` experimental, не runtime.
+- **Нет streamserver / backend / LB** production configs для snapshots/archive.
 - **Archive bucket** на stand: `video-fragments`, не ТЗ `vab`.
 - **Metadata** archive + snapshots в одной runtime table `fragments`.
-- **No alert delivery** на stand — metrics scrapeable; sample rules in `observability/`; delivery: [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md)
-- **No production rollout** — только local/dev stand.
-- **Latest 12 commits not pushed** to `origin/main`; push readiness documented in [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md), push not performed
+- **Alert delivery** не реализован — metrics и sample rules в `observability/`; см. [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md).
+- **Production rollout** не выполнен — local/dev stand.
 - **Cassandra §5.3 compaction** и **§5.4 migration** не в runtime.
-- **Bare-metal disk test plan** — документ готов, **прогон не зафиксирован** в этом status.
+- **Bare-metal disk test plan** — документ готов, **прогон не зафиксирован**.
+- **sideweed:** direct per-volume probes и multi-master visibility — **gap** (см. §6.1).
 
 ---
 
-## 5. Recommended next steps
+## 5. Рекомендуемые следующие шаги
 
 | Приоритет | Действие |
 |-----------|----------|
-| **A** | **Push policy** — при необходимости: sideweed `7eadd37` first, then root (см. [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)); без заказчика — держать локально |
-| **B** | **Alerting delivery** — Alertmanager/webhook в prod stack (metrics + sample rules готовы) |
-| **C** | **Production validation Cassandra:** запросить данные по [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) |
-| **D** | **Закрытие SeaweedFS §4:** выполнить [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) на test host |
-| **E** | **Внешний отчёт:** сократить этот документ + [CASSANDRA-TASK-STATUS.md](CASSANDRA-TASK-STATUS.md) для заказчика (после ревью) |
+| **A** | **Alerting delivery** — Alertmanager/webhook в prod stack |
+| **B** | **Production validation Cassandra** — [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) |
+| **C** | **Закрытие SeaweedFS §4** — [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) на test host |
+| **D** | **Внешний отчёт** — сократить этот документ для заказчика |
 
 ---
 
-## 6. Links to existing docs
+## 6. Ссылки на документы
 
 | Документ | Назначение |
 |----------|------------|
@@ -154,10 +154,10 @@
 | [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) | Задача №1 bare-metal |
 | [seaweedfs-disk-health.md](seaweedfs-disk-health.md) | Disk-health патч |
 | [sideweed-health.md](sideweed-health.md) | Write gate |
-| [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) | Alerting proposal §6.4 |
+| [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) | Alerting §6.4 (metrics + sample rules) |
 | [STAND-TESTING.md](STAND-TESTING.md) | Тесты stand |
 | [TZ-DEVIATIONS.md](TZ-DEVIATIONS.md) | Stand vs production |
 
 ---
 
-*Internal document. Для детального design Cassandra см. [CASSANDRA-OPTIMIZATION.md](CASSANDRA-OPTIMIZATION.md).*
+*Внутренний документ. Design Cassandra: [CASSANDRA-OPTIMIZATION.md](CASSANDRA-OPTIMIZATION.md).*

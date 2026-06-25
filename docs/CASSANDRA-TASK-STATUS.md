@@ -6,11 +6,11 @@ Experimental schema v2: [CASSANDRA-SCHEMA-V2.md](CASSANDRA-SCHEMA-V2.md).
 Load/capacity model: [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md).  
 Customer data checklist (internal): [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md).
 
-**Последнее обновление:** stand @ `4e2e0b6` (локально, без push).
+**Последнее обновление:** stand @ `336b451`, синхронизирован с `origin/main`.
 
 ---
 
-## 1. Summary
+## 1. Краткая сводка
 
 Задача №2 **закрыта частично** на уровне stand repo:
 
@@ -45,7 +45,7 @@ Runtime по-прежнему: `cassandra/schema.cql` → таблица `fragme
 | `make verify-path` | PUT идёт sideweed → S3 (не direct volume) | **PASS** | Лог-based proof; archive bucket |
 | `go test ./...` | Unit-тесты `pkg/fragment` (без integration tag) | **PASS** | Integration: отдельно `make test-go` |
 
-Дополнительно на чистом стенде ранее: `make test-go` PASS, `make test-sideweed` PASS (retry после transient DNS).
+Дополнительно на fresh clone @ `336b451`: `make test-sideweed` PASS (**30/30**), `go test ./...` PASS.
 
 ---
 
@@ -66,12 +66,7 @@ Runtime по-прежнему: `cassandra/schema.cql` → таблица `fragme
 
 **Runtime schema:** [cassandra/schema.cql](../cassandra/schema.cql) (не менялся в рамках Задачи №2).
 
-**Локальные commits (ahead, без push):**
-
-- `3cc7c96` — design doc
-- `5877202` — experimental schema v2
-- `9f134a1` — snapshot read smoke
-- `4e2e0b6` — range query smoke
+**История commits (опубликованы на `origin/main`):** `3cc7c96`, `5877202`, `9f134a1`, `4e2e0b6` и последующие root commits.
 
 ---
 
@@ -87,15 +82,15 @@ Runtime по-прежнему: `cassandra/schema.cql` → таблица `fragme
 
 ---
 
-## 6. Next recommended steps
+## 6. Рекомендуемые следующие шаги
 
 1. **Получить от заказчика:** см. внутренний [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) (DDL, query patterns, metrics, pipeline); также §8 [CASSANDRA-OPTIMIZATION.md](CASSANDRA-OPTIMIZATION.md).
 2. **Dev-only:** compose profile для ручного apply `schema-v2.cql` (без замены `schema.cql`).
 3. **Load model / benchmark:** [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md) (rows/partition, 3y volume); при необходимости — benchmark profile.
 4. **Customer questions:** checklist готов — [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md); перед внешним запросом — ревью формулировок.
 
-До sign-off с заказчиком: **не push** production configs и **не подменять** runtime schema.
+До sign-off с заказчиком: **не деплоить** production DDL/configs и **не подменять** runtime schema.
 
 ---
 
-*Документ создан для фиксации статуса Задачи №2; не заменяет [CASSANDRA-OPTIMIZATION.md](CASSANDRA-OPTIMIZATION.md).*
+*Документ фиксирует статус Задачи №2; не заменяет [CASSANDRA-OPTIMIZATION.md](CASSANDRA-OPTIMIZATION.md).*

@@ -1,123 +1,111 @@
-# Local milestone summary (internal)
+# Сводка локального milestone (internal)
 
-Краткая внутренняя сводка текущей локальной ветки.  
-**Не для заказчика.** Детали — в linked docs.
-
----
-
-## 1. Current local state
-
-| Item | Value |
-|------|-------|
-| **Root repo** | HEAD `46a9589`, **ahead 13** of `origin/main`, working tree **clean** |
-| **sideweed submodule** | HEAD `7eadd37`, **ahead 1** of `origin/master`, working tree **clean** |
-| **Root → sideweed pointer** | `7eadd37` (`feat: expose Prometheus metrics`) |
-| **sideweed on remote** | `origin/master` still @ `551df0b` until push |
-| **SeaweedFS fork** | pin **`1528e7d`** — unchanged in this milestone |
-| **Push** | **Not performed** (by policy) |
-
-**Fresh-clone risk:** remote-only clone is temporarily **not reproducible** until sideweed `7eadd37` is pushed, then root. Safe order documented in [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md).
+Краткая внутренняя сводка опубликованного milestone.  
+**Не для заказчика.** Детали — в связанных документах.
 
 ---
 
-## 2. What this milestone includes
+## 1. Текущее состояние
 
-### Cassandra (Задача №2, §5)
+| Параметр | Значение |
+|----------|----------|
+| **Root repo** | `origin/main` @ **`336b451`**, синхронизирован с remote |
+| **sideweed submodule** | `origin/master` @ **`2a428d2`**, на remote |
+| **SeaweedFS fork** | pin **`1528e7d`**, без изменений в этом milestone |
+| **Push** | **Выполнен** (sideweed → root, см. [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)) |
+| **Fresh clone** | **PASS** — `/home/cerf/Desktop/video-storage-stand-fresh-metrics` @ `336b451` / `2a428d2` / `1528e7d` |
 
-| Deliverable | Status |
-|-------------|--------|
-| Optimization design | [CASSANDRA-OPTIMIZATION.md](CASSANDRA-OPTIMIZATION.md) |
-| `schema-v2.cql` draft (experimental, not runtime) | [CASSANDRA-SCHEMA-V2.md](CASSANDRA-SCHEMA-V2.md) |
-| Snapshot csb PUT/GET smoke | `make test-snapshot`, `scripts/test_snapshot.sh` |
-| Range-query smoke | `make test-range-query`, `scripts/test_range_query.sh` |
+---
+
+## 2. Состав milestone
+
+### Cassandra (задача №2, §5)
+
+| Артефакт | Статус |
+|----------|--------|
+| Design оптимизации | [CASSANDRA-OPTIMIZATION.md](CASSANDRA-OPTIMIZATION.md) |
+| `schema-v2.cql` (experimental, не runtime) | [CASSANDRA-SCHEMA-V2.md](CASSANDRA-SCHEMA-V2.md) |
+| Snapshot csb PUT/GET smoke | `make test-snapshot` |
+| Range-query smoke | `make test-range-query` |
 | Load model | [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md) |
-| Customer questions checklist | [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) |
-| Task status rollup | [CASSANDRA-TASK-STATUS.md](CASSANDRA-TASK-STATUS.md) |
+| Чеклист вопросов заказчику | [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) |
 
-Runtime `cassandra/schema.cql` and `docker-compose.yml` **not changed** for v2.
+Runtime `cassandra/schema.cql` и `docker-compose.yml` для v2 **не менялись**.
 
-### SeaweedFS (Задача №1, §4)
+### SeaweedFS (задача №1, §4)
 
-| Deliverable | Status |
-|-------------|--------|
-| Bare-metal disk test plan | [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) |
+| Артефакт | Статус |
+|----------|--------|
+| План bare-metal disk tests | [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) — **прогон не выполнен** |
 
-Fork pin `1528e7d` already on customer remote; no new SeaweedFS push in this batch.
+### sideweed (задача №3, §6)
 
-### sideweed (Задача №3, §6)
+| Артефакт | Статус |
+|----------|--------|
+| Write gate | [sideweed-health.md](sideweed-health.md) |
+| `GET /metrics`, `GET /v1/write-health` | sideweed **`2a428d2`** |
+| Sample Prometheus scrape + alert rules | `observability/` |
+| Alerting design | [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) — **delivery не реализован** |
 
-| Deliverable | Status |
-|-------------|--------|
-| Write gate (earlier commits, on remote @ `551df0b`) | [sideweed-health.md](sideweed-health.md) |
-| **Phase 1:** Prometheus `/metrics` | sideweed `7eadd37`+ (local only until push) |
-| **`GET /v1/write-health`** | JSON write gate visibility (sideweed `2a428d2`) |
-| **Phase 2:** sample scrape + alert rules | `observability/prometheus-sideweed.yml`, `observability/sideweed-alert-rules.yml` |
-| Alerting design | [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) |
+### Процесс
 
-### Project / process
-
-| Deliverable | Status |
-|-------------|--------|
-| TZ implementation status (internal) | [TZ-IMPLEMENTATION-STATUS.md](TZ-IMPLEMENTATION-STATUS.md) |
-| Push readiness checklist (metrics batch) | [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md) |
-| This milestone summary | this file |
+| Артефакт | Статус |
+|----------|--------|
+| Статус по ТЗ | [TZ-IMPLEMENTATION-STATUS.md](TZ-IMPLEMENTATION-STATUS.md) |
+| Push checklist | [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md) |
 
 ---
 
-## 3. Verified tests
+## 3. Подтверждённые тесты
 
-**Last known PASS** on local `work2` stack (before/after docs-only commits; runtime unchanged):
+Fresh clone verification (`video-storage-stand-fresh-metrics`):
 
-| Command | Result |
-|---------|--------|
-| `make health` | PASS |
+| Команда | Результат |
+|---------|-----------|
+| `make up` / `make health` | PASS |
 | `make test` | PASS |
 | `make test-snapshot` | PASS |
 | `make test-range-query` | PASS |
 | `make verify-path` | PASS |
-| `make test-sideweed` | PASS (30/30; filer-down, single-volume-down, all-volumes-down) |
+| `make test-sideweed` | **PASS=30 FAIL=0** |
 | `go test ./...` | PASS |
-| `curl localhost:8880/metrics` | PASS (`sideweed_write_health_status`, `sideweed_backend_up`) |
-| `curl localhost:8880/v1/write-health` | PASS (`status: healthy` when stack OK) |
+| `GET /v1/write-health` | PASS (`status: healthy`) |
+| `GET /metrics` | PASS (`sideweed_write_health_status`) |
 
-**Not run** after latest docs/config commits: `make chaos-matrix` (no runtime change expected; previous matrix runs documented separately).
-
----
-
-## 4. Current limitations
-
-- **Push not performed** — 13 root commits + 1 sideweed commit local only.
-- **Remote fresh clone** temporarily not reproducible until sideweed `7eadd37` → root push (see [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)).
-- **Alertmanager delivery** not implemented — metrics + sample rules only.
-- **Cassandra production DDL** not applied — `schema-v2.cql` is design/draft.
-- **Bare-metal disk tests** planned but **not executed** on physical hosts.
-- **Production rollout** not done — local/dev stand only.
-- **Customer-facing report** not prepared from this doc.
+`make chaos-matrix` в этом прогоне **не запускался**.
 
 ---
 
-## 5. Next decision points
+## 4. Ограничения
 
-| Priority | Decision / action |
-|----------|-------------------|
-| 1 | **Push policy** — push sideweed `7eadd37`, then root; fresh-clone verify per [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md) |
-| 2 | **Customer report** — distill [TZ-IMPLEMENTATION-STATUS.md](TZ-IMPLEMENTATION-STATUS.md) + task docs for Aziz/SRE (external wording) |
-| 3 | **Cassandra prod data** — use [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) |
-| 4 | **SeaweedFS §4 closure** — execute [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) on test metal |
-| 5 | **Alerting delivery** — if customer monitoring stack known: wire Alertmanager/webhook from [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) + `observability/` |
+- **Alertmanager delivery** не реализован — только metrics + sample rules.
+- **Cassandra production DDL** не применялся — `schema-v2.cql` draft.
+- **Bare-metal disk tests** — план есть, прогон не зафиксирован.
+- **Production rollout** не выполнен.
+- **Direct per-volume probes** и **multi-master health** в sideweed не закрыты.
 
 ---
 
-## 6. Links
+## 5. Следующие шаги
 
-| Document | Purpose |
-|----------|---------|
-| [TZ-IMPLEMENTATION-STATUS.md](TZ-IMPLEMENTATION-STATUS.md) | Full TZ status by section |
-| [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md) | Safe push order + fresh-clone verification |
-| [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) | Metrics + sample alert rules |
-| [CASSANDRA-TASK-STATUS.md](CASSANDRA-TASK-STATUS.md) | Cassandra task rollup |
-| [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) | Disk fault tests on bare metal |
+| Приоритет | Действие |
+|-----------|----------|
+| 1 | **Alerting delivery** — Alertmanager/webhook в prod stack |
+| 2 | **Отчёт заказчику** — на базе [TZ-IMPLEMENTATION-STATUS.md](TZ-IMPLEMENTATION-STATUS.md) |
+| 3 | **Cassandra prod data** — [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) |
+| 4 | **SeaweedFS §4** — [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) на test metal |
 
 ---
 
-*Internal snapshot. Update when push policy or verified baseline changes.*
+## 6. Ссылки
+
+| Документ | Назначение |
+|----------|------------|
+| [TZ-IMPLEMENTATION-STATUS.md](TZ-IMPLEMENTATION-STATUS.md) | Полный статус по ТЗ |
+| [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md) | Push и fresh-clone |
+| [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) | Metrics и sample rules |
+| [CASSANDRA-TASK-STATUS.md](CASSANDRA-TASK-STATUS.md) | Задача №2 Cassandra |
+
+---
+
+*Внутренний снимок. Обновлять при смене verified baseline.*

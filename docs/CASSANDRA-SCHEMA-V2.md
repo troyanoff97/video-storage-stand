@@ -1,4 +1,4 @@
-# Cassandra schema v2 (experimental draft)
+# Cassandra schema v2 (experimental draft, не runtime)
 
 Файл DDL: [cassandra/schema-v2.cql](../cassandra/schema-v2.cql)
 

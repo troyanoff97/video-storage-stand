@@ -1,7 +1,8 @@
 # Sample Prometheus config for sideweed write metrics (reference only).
-# NOT wired into docker-compose.yml — copy or merge into your monitoring stack.
+# Пример конфигурации — НЕ подключён к docker-compose.yml.
+# Скопируйте или встройте в monitoring stack заказчика.
 #
-# Validate:
+# Проверка:
 #   promtool check config observability/prometheus-sideweed.yml
 #
 # Run (example):
