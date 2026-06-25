@@ -12,7 +12,7 @@
 | **Not done** | Не реализовано |
 | **Blocked** | Требуются данные/среда заказчика или bare-metal |
 
-**Последнее обновление:** stand @ `336b451`, **синхронизирован с `origin/main`**. Fresh clone: **PASS** ([PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)).
+**Последнее обновление:** stand @ `45daa7b`. Production config audit: [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md).
 
 ---
 
@@ -59,7 +59,7 @@
 | Пункт | Статус | Что сделано | Подтверждение | Что осталось | Блокер |
 |-------|--------|-------------|---------------|--------------|--------|
 | **4.1 Fork SeaweedFS** | **Done** | Customer fork, branch `feat/volume-disk-health-isolation`, pin `1528e7d` | [SEAWEEDFS_PIN.md](SEAWEEDFS_PIN.md), `make check-seaweedfs`, commits `af95554`+ | Push policy / customer remote sync | — |
-| **4.2 Обработка отказа диска** | **Partial** | Патч volume: unhealthy dir, readonly volumes, I/O / space errors | Unit tests in fork; `make chaos-multi-dir`; [seaweedfs-disk-health.md](seaweedfs-disk-health.md) | Real mount/ro/full/I/O on bare metal | Docker tmpfs → matrix WARN/SKIP |
+| **4.2 Обработка отказа диска** | **Partial** | Патч volume; prod: **14 `-dir`** per node | [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) §8; `make chaos-multi-dir` | Bare-metal sign-off | Customer metal host |
 | **4.3 Изоляция damaged disk** | **Partial** | Multi-dir skip; master removes writables; writes on healthy dir | `make chaos-multi-dir` when fault applies | Guaranteed per-dir on physical disk | Same as 4.2 |
 | **4.4 Логирование** | **Partial** | Structured logs: path, volume IDs, heartbeat, `/status`, Prometheus metric | [seaweedfs-disk-health.md](seaweedfs-disk-health.md) | Full sign-off on prod host | Bare-metal run |
 | **4.5 Восстановление** | **Partial** | Recovery loop + heartbeat; `chaos-reset`, recovery scripts | `make chaos-recovery*`, log `recovered and is healthy again` | Remount real disk timing SLA | Bare-metal scenario H |
@@ -72,9 +72,9 @@
 
 | Пункт | Статус | Что сделано | Подтверждение | Что осталось | Блокер |
 |-------|--------|-------------|---------------|--------------|--------|
-| **5.1 Bucket separation vab/csb** | **Partial** | Blob: archive `video-fragments`, snapshots `csb` | `make test`, `make test-snapshot` | Production bucket `vab`; metadata split | Customer bucket layout |
-| **5.2 Snapshot pipeline write/read csb** | **Partial** | `put_snapshot.sh`, `get_snapshot.sh`, `make test-snapshot` | commit `9f134a1`, smoke PASS | streamserver/backend/LB; metadata store | Production configs |
-| **5.3 Compaction optimization** | **Partial** | Design + `schema-v2.cql` TWCS draft | `5877202`, [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md) | Runtime TWCS/TTL tuning | Production DDL + `tablestats` |
+| **5.1 Bucket separation vab/csb** | **Partial** | Stand: `video-fragments`/`csb`; prod audit: **vab** archive+camera snapshots, **csb** read-ready | `make test`, `make test-snapshot`; [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) | Prod write migration vab→csb | Customer apply |
+| **5.2 Snapshot pipeline write/read csb** | **Partial** | Stand smoke; prod: camera snapshots в **vab**, events в **esb** | `make test-snapshot`; prod configs | streamserver `bucket_name`; teye `camera_base_url` | Customer migration |
+| **5.3 Compaction optimization** | **Partial** | Prod **`seaweedfs.filemeta` TWCS 6h**; stand `schema-v2.cql` draft (app layer) | [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) §5 | teye DDL; app metadata tuning | teye Cassandra |
 | **5.3 Segment search / range query** | **Partial** | `fragment list`, `list_fragments.sh`, `make test-range-query` | commit `4e2e0b6`, smoke PASS | `time_bucket` / v2 at scale | Production query patterns |
 | **5.4 Compatibility** | **Not done** | Dual-read/migration описаны в design | [CASSANDRA-OPTIMIZATION.md](CASSANDRA-OPTIMIZATION.md) | Migration job, dual-write code | Production DDL + data volume |
 
@@ -89,7 +89,7 @@
 | **6.1 Health checks** | **Partial** | Write probes; `/v1/write-health`; filer-down + **single/all volume** assign behavior in `test-sideweed` | [sideweed-health.md](sideweed-health.md), `make test-sideweed` | Direct per-volume probes; multi-master list; prod multi-S3-GW | — |
 | **6.2 PUT blocking** | **Done** | 503 fail-fast `PUT_BLOCKED` / `write_health_degraded` | `make test-sideweed`, commit `1d9e0f0`, `77eea5c` | — | — |
 | **6.3 Automatic recovery** | **Done** | PUT OK after master/S3/volumes recovery; `WRITE_RECOVERED` | `make test-sideweed` recovery scenarios | Long soak / prod soak | — |
-| **6.4 Logging / alerting** | **Partial** | JSON logs; Phase 1 `/metrics`; Phase 2 sample Prometheus scrape + alert rules | [sideweed-health.md](sideweed-health.md); [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md); [observability/](../observability/); `make test-sideweed` | Alertmanager delivery, webhook/Slack, prod monitoring stack | Customer monitoring stack |
+| **6.4 Logging / alerting** | **Partial** | JSON logs; `/metrics`; sample rules; prod stack: **VictoriaMetrics/Grafana/vmalert** | [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md); [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) §7 | vmalert rules deploy для sideweed; prod write gate rollout | Customer SRE |
 
 ---
 
@@ -120,8 +120,9 @@
 ## 4. Текущие ограничения
 
 - **Docker / tmpfs:** disk mount/ro/full часто **WARN/SKIP** в chaos-matrix; не заменяет physical disk (§4.2–4.5).
-- **Production Cassandra DDL** не применялся — `schema-v2.cql` experimental, не runtime.
-- **Нет streamserver / backend / LB** production configs для snapshots/archive.
+- **Production Cassandra DDL** частично получен: **`seaweedfs.filemeta`** (TWCS); teye keyspace DDL — **нет**. Stand `schema-v2.cql` — experimental.
+- **Production configs получены** (read-only audit); **изменения в prod не внесены**.
+- **Нет bare-metal** test host от заказчика.
 - **Archive bucket** на stand: `video-fragments`, не ТЗ `vab`.
 - **Metadata** archive + snapshots в одной runtime table `fragments`.
 - **Alert delivery** не реализован — metrics и sample rules в `observability/`; см. [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md).
@@ -136,10 +137,10 @@
 
 | Приоритет | Действие |
 |-----------|----------|
-| **A** | **Alerting delivery** — Alertmanager/webhook в prod stack |
-| **B** | **Production validation Cassandra** — [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) |
-| **C** | **Закрытие SeaweedFS §4** — [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) на test host |
-| **D** | **Внешний отчёт** — сократить этот документ для заказчика |
+| **A** | **vmalert delivery** — адаптировать `observability/` rules под VictoriaMetrics stack заказчика |
+| **B** | **Snapshot vab→csb** — migration checklist ([PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) §4) |
+| **C** | **teye Cassandra** — запросить DDL/query patterns |
+| **D** | **SeaweedFS §4** — enhanced local simulation + bare-metal когда доступен |
 
 ---
 
@@ -156,6 +157,7 @@
 | [sideweed-health.md](sideweed-health.md) | Write gate |
 | [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) | Alerting §6.4 (metrics + sample rules) |
 | [STAND-TESTING.md](STAND-TESTING.md) | Тесты stand |
+| [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) | Read-only audit prod configs |
 | [TZ-DEVIATIONS.md](TZ-DEVIATIONS.md) | Stand vs production |
 
 ---

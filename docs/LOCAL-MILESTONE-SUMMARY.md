@@ -12,8 +12,8 @@
 | **Root repo** | `origin/main` @ **`336b451`**, синхронизирован с remote |
 | **sideweed submodule** | `origin/master` @ **`2a428d2`**, на remote |
 | **SeaweedFS fork** | pin **`1528e7d`**, без изменений в этом milestone |
-| **Push** | **Выполнен** (sideweed → root, см. [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)) |
-| **Fresh clone** | **PASS** — `/home/cerf/Desktop/video-storage-stand-fresh-metrics` @ `336b451` / `2a428d2` / `1528e7d` |
+| **Push** | **Выполнен** (см. [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md)) |
+| **Production config audit** | [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) — read-only, 2026-06-25 |
 
 ---
 
@@ -91,7 +91,7 @@ Fresh clone verification (`video-storage-stand-fresh-metrics`):
 | Приоритет | Действие |
 |-----------|----------|
 | 1 | **Alerting delivery** — Alertmanager/webhook в prod stack |
-| 2 | **Отчёт заказчику** — на базе [TZ-IMPLEMENTATION-STATUS.md](TZ-IMPLEMENTATION-STATUS.md) |
+| 2 | **Production audit** — vab→csb migration checklist, vmalert rules |
 | 3 | **Cassandra prod data** — [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md) |
 | 4 | **SeaweedFS §4** — [SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md](SEAWEEDFS-BARE-METAL-DISK-TEST-PLAN.md) на test metal |
 
@@ -101,6 +101,7 @@ Fresh clone verification (`video-storage-stand-fresh-metrics`):
 
 | Документ | Назначение |
 |----------|------------|
+| [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) | Production configs audit |
 | [TZ-IMPLEMENTATION-STATUS.md](TZ-IMPLEMENTATION-STATUS.md) | Полный статус по ТЗ |
 | [PUSH-CHECKLIST.md](PUSH-CHECKLIST.md) | Push и fresh-clone |
 | [SIDEWEED-ALERTING.md](SIDEWEED-ALERTING.md) | Metrics и sample rules |

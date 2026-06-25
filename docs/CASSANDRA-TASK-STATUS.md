@@ -1,12 +1,10 @@
 # Задача №2 — Cassandra metadata optimization: статус
 
-Краткий статус работ по ТЗ §5 без production DDL от заказчика.  
+Краткий статус работ по ТЗ §5.  
 Подробный design: [CASSANDRA-OPTIMIZATION.md](CASSANDRA-OPTIMIZATION.md).  
-Experimental schema v2: [CASSANDRA-SCHEMA-V2.md](CASSANDRA-SCHEMA-V2.md).  
-Load/capacity model: [CASSANDRA-LOAD-MODEL.md](CASSANDRA-LOAD-MODEL.md).  
-Customer data checklist (internal): [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-CUSTOMER-QUESTIONS.md).
+Production facts: [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) §5.
 
-**Последнее обновление:** stand @ `336b451`, синхронизирован с `origin/main`.
+**Последнее обновление:** stand @ `45daa7b`. Production DDL **частично получен** (`seaweedfs.filemeta`).
 
 ---
 
@@ -16,8 +14,8 @@ Customer data checklist (internal): [CASSANDRA-CUSTOMER-QUESTIONS.md](CASSANDRA-
 
 - **Snapshot blob path (csb):** write (`put_snapshot.sh`) и read (`get_snapshot.sh`) через production-like S3 path; smoke `make test-snapshot` — PASS.
 - **Поиск сегментов / range query:** stand-level list по `camera_id` + time range на **runtime** schema (`fragment list`, `list_fragments.sh`); smoke `make test-range-query` — PASS.
-- **Compaction / partition model:** только design + experimental draft `cassandra/schema-v2.cql` (TWCS, `time_bucket`); **не подключено** к runtime.
-- **Production:** DDL, реальные query patterns, streamserver/backend/LB, migration §5.4 — **ещё не получены** от заказчика.
+- **Compaction / partition model:** prod **`seaweedfs.filemeta` TWCS 6h** (audit); stand `schema-v2.cql` — draft для **application** metadata; **не runtime**.
+- **Production:** SeaweedFS metadata DDL **частично получен**; teye keyspace DDL, query patterns, migration §5.4 — **ещё не получены**.
 
 Runtime по-прежнему: `cassandra/schema.cql` → таблица `fragments` (STCS по умолчанию).
 
@@ -27,9 +25,9 @@ Runtime по-прежнему: `cassandra/schema.cql` → таблица `fragme
 
 | Пункт ТЗ | Статус | Что сделано | Чем подтверждено | Что осталось |
 |----------|--------|-------------|------------------|--------------|
-| **5.1 Bucket separation** | Частично | S3: archive `video-fragments`, snapshots `csb`; отдельные put/get scripts | `make test`, `make test-snapshot`, `make verify-path` | Bucket `vab` (ТЗ); metadata split archive/snapshots; legacy `vab` layout |
-| **5.2 Snapshot pipeline write/read csb** | Частично (stand blob) | `put_snapshot.sh` → sideweed → S3 `csb`; `get_snapshot.sh` + `make test-snapshot` | `make test-snapshot` PASS | streamserver/backend/LB configs; metadata в отдельном store; production pipeline diagram |
-| **5.3 Cassandra compaction optimization** | Не в runtime (draft) | Design doc §4–5; `schema-v2.cql` с TWCS (experimental) | `docs/CASSANDRA-OPTIMIZATION.md`, `cassandra/schema-v2.cql` | Применить TWCS/TTL после `tablestats`; production DDL; dev profile для v2 |
+| **5.1 Bucket separation** | Частично | Stand: `video-fragments`/`csb`; prod: **vab** (archive+camera), **csb** read-ready, **esb** events | `make test`, `make test-snapshot`; [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) | Prod write vab→csb; teye metadata split |
+| **5.2 Snapshot pipeline write/read csb** | Частично | Stand smoke; prod camera snapshots ещё **vab** | `make test-snapshot` PASS | streamserver `bucket_name`; teye `camera_base_url` |
+| **5.3 Cassandra compaction optimization** | Частично (SeaweedFS metadata) | Prod `seaweedfs.filemeta` TWCS; stand `schema-v2.cql` draft | [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) | teye DDL; app-layer tuning; `tablestats` |
 | **5.3 Segment search / range query** | Частично (stand smoke) | `ListFragmentsByTimeRange` (timeuuid bounds); `fragment list`; `list_fragments.sh`; `make test-range-query` | `make test-range-query` PASS, `go test ./...` PASS | `time_bucket` / `schema-v2` для масштаба; согласование с prod query patterns |
 | **5.4 Backward compatibility** | Не реализовано | Описание dual-read/migration в design + комментарии v2; runtime не ломает v1 | Stand smoke tests PASS на v1 schema | Migration job, dual-write, rollback; customer data volume + SLA |
 

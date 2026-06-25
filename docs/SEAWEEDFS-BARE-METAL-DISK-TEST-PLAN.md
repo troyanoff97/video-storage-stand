@@ -3,7 +3,7 @@
 Практический план проверки отказа диска и изоляции **на физическом хосте / отдельном volume node**.  
 **Не письмо заказчику** — внутренний runbook для acceptance Задачи №1.
 
-**Статус выполнения:** план готов; **прогон на metal не выполнен и не зафиксирован**. Docker stand покрывает частично через `make chaos-matrix` / `chaos-multi-dir` (с ограничениями tmpfs).
+**Статус выполнения:** план готов; **прогон на metal не выполнен**. Заказчик **не предоставил** bare-metal стенд ([PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) §8). Production: **14 `-dir`** на volume node — per-dir isolation **релевантен**.
 
 **Связанные документы:**
 
@@ -51,8 +51,9 @@ Bare-metal test подтверждает, что поведение на product
 | # | Требование |
 |---|------------|
 | P1 | **Отдельный test host** или выделенный volume node — **не production** |
-| P2 | SeaweedFS fork `git@github.com:troyanoff97/seaweedfs.git`, branch `feat/volume-disk-health-isolation`, commit **`1528e7d`** |
-| P3 | Stand repo для client smoke (опционально): `origin/main` @ **`336b451`** |
+| P2 | SeaweedFS fork, branch `feat/volume-disk-health-isolation`, commit **`1528e7d`** |
+| P2a | Production layout: **14 `-dir`** per volume node (`/mnt/stor1`…`/mnt/stor14`) — см. [PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) |
+| P3 | Stand repo: `origin/main` @ **`45daa7b`** |
 | P4 | Минимум **2 writable locations** на одном volume node (`-dir=/mnt/weed-a,/mnt/weed-b`) **или** 2 volume nodes (volume1 healthy, volume2 fault target) |
 | P5 | Возможность **безопасно** umount/remount/ro/fill **тестового** диска без production data |
 | P6 | Master, filer, S3 Gateway, sideweed доступны по production-like path |
@@ -354,6 +355,23 @@ docker logs <volume-container> 2>&1 | grep -iE 'disk location|unhealthy|recovere
 **FAIL** = unhealthy not marked when fault applied; writes succeed **only** on faulted dir; volume process exit; master still assigns to readonly volumes; recovery does not restore writables within SLA.
 
 Заполнять `Status` при выполнении: PASS / FAIL / SKIP (with reason).
+
+---
+
+## 7a. Enhanced local simulation (пока нет customer metal)
+
+Пока заказчик не предоставил bare-metal host ([PRODUCTION-CONFIG-AUDIT.md](PRODUCTION-CONFIG-AUDIT.md) §8), можно усилить **локальную** симуляцию (runbook only, **не реализовано** в stand):
+
+| Техника | Сценарий | Примечание |
+|---------|----------|------------|
+| Loopback **ext4** image | Отдельный `-dir` на file-backed FS | `dd` + `mkfs.ext4` + `mount -o loop` |
+| **read-only remount** | Dir isolation (§4.3) | `mount -o remount,ro` на одном dir |
+| **disk full** | minFreeSpace / readonly | `fallocate` / `dd` fill |
+| **dmsetup error** (optional) | I/O errors (§4.2) | Требует root; не везде доступно |
+
+Production: **14 `-dir`** (`/mnt/stor1`…`/mnt/stor14`) — simulation должна моделировать **partial dir fault**, не только whole-node down.
+
+**Честно:** enhanced simulation **не заменяет** production bare-metal sign-off.
 
 ---
 
