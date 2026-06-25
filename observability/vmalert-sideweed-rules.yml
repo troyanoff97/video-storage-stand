@@ -1,0 +1,94 @@
+# VictoriaMetrics vmalert rules for sideweed write gate (reference only).
+# Production target: vmalert + VictoriaMetrics scrape. NOT applied by stand runtime.
+#
+# Validate (PyYAML): python3 -c "import yaml; yaml.safe_load(open('observability/vmalert-sideweed-rules.yml'))"
+# Deploy: merge into customer vmalert -rule / -dryRun paths per docs/VMALERT-INTEGRATION.md
+
+groups:
+  - name: sideweed-write
+    interval: 30s
+    rules:
+      - alert: SideweedWriteHealthDegraded
+        expr: sideweed_write_health_status == 0
+        for: 30s
+        labels:
+          severity: warning
+          component: sideweed
+          subsystem: write-gate
+        annotations:
+          summary: "sideweed write path degraded"
+          description: >-
+            sideweed_write_health_status is 0 for at least 30s. PUT/POST/DELETE may return 503.
+          runbook: "docs/sideweed-health.md; make test-sideweed"
+
+      - alert: SideweedPutBlocked
+        expr: increase(sideweed_put_blocked_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: sideweed
+        annotations:
+          summary: "sideweed blocked mutating requests"
+          description: "sideweed_put_blocked_total increased in 5m (check reason label)."
+          runbook: "docs/sideweed-health.md"
+
+      - alert: SideweedPutBlockedHighRate
+        expr: sum(rate(sideweed_put_blocked_total[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: sideweed
+        annotations:
+          summary: "high rate of sideweed blocked writes"
+          description: "Blocked write rate > 0.5/s. Tune threshold for production QPS."
+          runbook: "rate(sideweed_put_blocked_total[5m]) by (reason)"
+
+      - alert: SideweedBackendDown
+        expr: sideweed_backend_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: sideweed
+        annotations:
+          summary: "sideweed S3 backend down ({{ $labels.backend }})"
+          description: "sideweed_backend_up==0 for backend {{ $labels.backend }}."
+          runbook: "Check S3 gateway, filer, network"
+
+      - alert: SideweedWriteHealthFlapping
+        expr: changes(sideweed_write_health_status[15m]) > 6
+        for: 5m
+        labels:
+          severity: warning
+          component: sideweed
+        annotations:
+          summary: "sideweed write health flapping"
+          description: "write_health_status changed >6 times in 15m."
+          runbook: "Probe timeouts, partial cluster failures"
+
+      - alert: SideweedNoRecoveryAfterDegradation
+        expr: |
+          sideweed_write_health_status == 0
+          and increase(sideweed_write_recovered_total[30m]) == 0
+        for: 30m
+        labels:
+          severity: critical
+          component: sideweed
+        annotations:
+          summary: "sideweed degraded without recovery"
+          description: "Degraded 30m with no recovery counter increase."
+          runbook: "SeaweedFS health; manual intervention"
+
+      - alert: SideweedHealthProbeSlow
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(sideweed_health_probe_duration_seconds_bucket[5m])) by (le, probe)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: sideweed
+        annotations:
+          summary: "sideweed probe slow ({{ $labels.probe }})"
+          description: "p95 probe latency > 2s over 5m."
+          runbook: "Check probe targets; tune write-health-timeout"
