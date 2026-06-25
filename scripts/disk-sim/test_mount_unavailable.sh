@@ -10,18 +10,21 @@ load_state
 
 TARGET="${1:-1}"
 MNT="$(default_mount "$TARGET")"
-safe_path "$MNT" >/dev/null"
+safe_path "$MNT" >/dev/null
 
 is_mounted "$MNT" || die "Already unmounted: $MNT"
 
-info "Unmounting $MNT (controlled fault)..."
-run_root umount "$MNT"
-
+sim_log "Unmounting ${MNT} [controlled fault]"
+run_root umount "$MNT" 2>/dev/null || run_root umount -l "$MNT" 2>/dev/null || true
 if is_mounted "$MNT"; then
-  die "Unmount failed: $MNT still mounted"
+  run_root umount -f "$MNT" 2>/dev/null || run_root umount -l "$MNT" 2>/dev/null || true
 fi
 
-info "Mount unavailable confirmed for $MNT"
+if is_mounted "$MNT"; then
+  die "Unmount failed: ${MNT} still mounted"
+fi
+
+sim_log "Mount unavailable confirmed for ${MNT}"
 cat <<'NOTE'
 
 Expected behavior on production:

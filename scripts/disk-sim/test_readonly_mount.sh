@@ -14,10 +14,14 @@ safe_path "$MNT" >/dev/null
 
 is_mounted "$MNT" || die "Mount not active: $MNT"
 
-info "Remounting $MNT read-only..."
+sim_log "Remounting ${MNT} read-only..."
 run_root mount -o remount,ro "$MNT"
 
-info "findmnt options: $(mount_options "$MNT")"
+opts="$(mount_options "$MNT")"
+sim_log "findmnt options: ${opts}"
+if [[ "$opts" != *ro* ]]; then
+  die "remount,ro did not apply (stacked mounts? run cleanup and setup again)"
+fi
 
 PROBE="${MNT}/.readonly-probe"
 if touch "$PROBE" 2>/dev/null; then
@@ -25,7 +29,7 @@ if touch "$PROBE" 2>/dev/null; then
   die "Mount still writable after remount,ro"
 fi
 
-info "Write probe failed as expected (read-only $MNT)"
+sim_log "Write probe failed as expected (read-only $MNT)"
 cat <<'NOTE'
 
 Expected behavior on production:

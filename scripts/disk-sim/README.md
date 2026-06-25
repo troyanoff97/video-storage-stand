@@ -7,7 +7,8 @@ Enhanced **local** simulation of per-dir disk faults using loopback ext4 images 
 ## Requirements
 
 - Linux: `losetup`, `mkfs.ext4`, `mount`, `umount`, `df`, `findmnt`, `dd`
-- **sudo** for mount/umount/losetup (unless already root)
+- **sudo** for mount/umount/losetup (or root)
+- Non-interactive sudo: `export SUDO_ASKPASS=/path/to/askpass.sh` (executable script that prints password)
 - `CONFIRM_DISK_SIM=1` for destructive steps
 
 ## Quick start

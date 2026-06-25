@@ -8,6 +8,8 @@ require_confirm
 check_dependencies
 need_root_for_mount
 
+safe_path "$DISK_SIM_ROOT" >/dev/null 2>/dev/null || mkdir -p "$DISK_SIM_ROOT"
+force_teardown_sim
 IMG1="${DISK_SIM_ROOT}/disk1.img"
 IMG2="${DISK_SIM_ROOT}/disk2.img"
 MNT1="${DISK_SIM_ROOT}/mnt/stor1"
@@ -17,27 +19,25 @@ safe_path "$DISK_SIM_ROOT" >/dev/null
 mkdir -p "${DISK_SIM_ROOT}/mnt" "${DISK_SIM_ROOT}/logs"
 
 if [[ -f "$DISK_SIM_STATE" ]]; then
-  info "State file already exists: $DISK_SIM_STATE"
+  sim_log "State file already exists: $DISK_SIM_STATE"
   load_state
   show_mount_status
   exit 0
 fi
 
-info "Creating loopback images (${DISK_SIM_SIZE_MB} MiB each)..."
+sim_log "Creating loopback images (${DISK_SIM_SIZE_MB} MiB each)..."
 mkdir -p "$(dirname "$IMG1")"
 dd if=/dev/zero of="$IMG1" bs=1M count="$DISK_SIM_SIZE_MB" status=progress 2>/dev/null || \
   dd if=/dev/zero of="$IMG1" bs=1M count="$DISK_SIM_SIZE_MB"
 dd if=/dev/zero of="$IMG2" bs=1M count="$DISK_SIM_SIZE_MB" status=progress 2>/dev/null || \
   dd if=/dev/zero of="$IMG2" bs=1M count="$DISK_SIM_SIZE_MB"
 
-LOOP1="$(run_root losetup -f)"
-LOOP2="$(run_root losetup -f)"
-run_root losetup "$LOOP1" "$IMG1"
-run_root losetup "$LOOP2" "$IMG2"
+LOOP1="$(run_root losetup -f --show "$IMG1")"
+LOOP2="$(run_root losetup -f --show "$IMG2")"
 
-info "Formatting ext4..."
-run_root mkfs.ext4 -F "$LOOP1" >/dev/null
-run_root mkfs.ext4 -F "$LOOP2" >/dev/null
+sim_log "Formatting ext4..."
+run_root mkfs.ext4 -F -m 0 "$LOOP1" >/dev/null
+run_root mkfs.ext4 -F -m 0 "$LOOP2" >/dev/null
 
 mkdir -p "$MNT1" "$MNT2"
 run_root mount "$LOOP1" "$MNT1"
@@ -56,6 +56,6 @@ MNT2='$MNT2'
 EOF
 chmod 600 "$DISK_SIM_STATE"
 
-info "Setup complete. State: $DISK_SIM_STATE"
+sim_log "Setup complete. State: $DISK_SIM_STATE"
 show_mount_status
 lsblk "$LOOP1" "$LOOP2" 2>/dev/null || true

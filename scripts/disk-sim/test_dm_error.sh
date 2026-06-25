@@ -8,12 +8,12 @@ source "$SCRIPT_DIR/common.sh"
 require_confirm
 
 if ! command -v dmsetup >/dev/null 2>&1; then
-  info "SKIP: dmsetup not installed"
+  sim_log "SKIP: dmsetup not installed"
   exit 0
 fi
 
 if [[ ! -w /dev/mapper ]] && [[ "$(id -u)" -ne 0 ]]; then
-  info "SKIP: dmsetup requires root (try sudo)"
+  sim_log "SKIP: dmsetup requires root (try sudo)"
   exit 0
 fi
 
@@ -31,4 +31,4 @@ See docs/SEAWEEDFS-ENHANCED-DISK-SIMULATION.md §7.
 
 NOTE
 
-info "dmsetup present; manual dm-error procedure documented in docs (no auto-run)"
+sim_log "dmsetup present; manual dm-error procedure documented in docs (no auto-run)"
