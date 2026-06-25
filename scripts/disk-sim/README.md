@@ -32,7 +32,10 @@ CONFIRM_DISK_SIM=1 ./scripts/disk-sim/recover_mounts.sh
 CONFIRM_DISK_SIM=1 ./scripts/disk-sim/test_mount_unavailable.sh
 CONFIRM_DISK_SIM=1 ./scripts/disk-sim/recover_mounts.sh
 
-# 4. Cleanup
+# 5. Optional dm-error (may SKIP if dm_mod unavailable)
+CONFIRM_DISK_SIM=1 make disk-sim-dm-error
+
+# 6. Cleanup
 CONFIRM_DISK_SIM=1 ./scripts/disk-sim/cleanup_loopback_dirs.sh
 ```
 
@@ -54,7 +57,7 @@ CONFIRM_DISK_SIM=1 make disk-sim-e2e-test
 CONFIRM_DISK_SIM=1 make disk-sim-e2e-down
 ```
 
-See [docs/SEAWEEDFS-DISK-SIM-E2E.md](../../docs/SEAWEEDFS-DISK-SIM-E2E.md).
+See [docs/03-TESTING.md](../../docs/03-TESTING.md) (E2E disk-sim section).
 
 ## Safety
 
@@ -62,4 +65,4 @@ See [docs/SEAWEEDFS-DISK-SIM-E2E.md](../../docs/SEAWEEDFS-DISK-SIM-E2E.md).
 - Cleanup only removes `/tmp/seaweedfs-disk-sim`.
 - Does not run `docker compose down -v`.
 
-Full doc: [docs/SEAWEEDFS-ENHANCED-DISK-SIMULATION.md](../../docs/SEAWEEDFS-ENHANCED-DISK-SIMULATION.md).
+Full doc: [docs/03-TESTING.md](../../docs/03-TESTING.md) (disk-sim section).

@@ -9,7 +9,7 @@ GO := go
 	chaos-mount-unavailable chaos-disk-full chaos-disk-readonly chaos-reset \
 	chaos-matrix chaos-recovery chaos-recovery-disk chaos-multi-dir put-v1 up-multi-dir up-persist \
 	test-sideweed test-snapshot test-range-query \
-	disk-sim-setup disk-sim-full disk-sim-readonly disk-sim-mount-down disk-sim-recover disk-sim-logs disk-sim-cleanup \
+	disk-sim-setup disk-sim-full disk-sim-readonly disk-sim-mount-down disk-sim-recover disk-sim-logs disk-sim-cleanup disk-sim-dm-error \
 	disk-sim-e2e-up disk-sim-e2e-test disk-sim-e2e-down
 
 help:
@@ -40,6 +40,7 @@ help:
 	@echo "  disk-sim-full        simulate disk full on sim mount"
 	@echo "  disk-sim-readonly    simulate read-only remount"
 	@echo "  disk-sim-mount-down  simulate umount fault"
+	@echo "  disk-sim-dm-error    optional dm-error I/O fault (CONFIRM_DISK_SIM=1)"
 	@echo "  disk-sim-recover     recover sim mounts"
 	@echo "  disk-sim-cleanup     remove /tmp/seaweedfs-disk-sim"
 	@echo "  disk-sim-e2e-up    E2E: volume1 bind-mount loopback dirs (CONFIRM_DISK_SIM=1)"
@@ -196,6 +197,10 @@ disk-sim-readonly:
 disk-sim-mount-down:
 	chmod +x $(DISK_SIM)/*.sh
 	CONFIRM_DISK_SIM=1 $(DISK_SIM)/test_mount_unavailable.sh
+
+disk-sim-dm-error:
+	chmod +x $(DISK_SIM)/*.sh
+	CONFIRM_DISK_SIM=1 $(DISK_SIM)/test_dm_error.sh
 
 disk-sim-recover:
 	chmod +x $(DISK_SIM)/*.sh
