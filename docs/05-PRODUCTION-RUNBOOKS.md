@@ -18,16 +18,24 @@ Verify: disk location logs, `seaweed_volumeServer_disk_healthy{dir}`, assign ski
 sideweed -l --json --health-path=/healthz --health-duration=3s \
   --write-health-enabled \
   --write-health-check=s3=http://stor1:8333/healthz \
-  --write-health-check=filer=http://filer:8888/ \
-  --write-health-check=master=http://master:9333/cluster/status \
-  --write-health-check="assign=http://master:9333/dir/assign?count=1&replication=XXX|200" \
-  --write-health-visibility-check=volume1=http://stor1:8080/healthz \
-  --address=:9000 http://stor1:8333 http://stor2:8333 ...
+  --write-health-check=s3-2=http://stor2:8333/healthz \
+  --write-health-check=s3-3=http://stor3:8333/healthz \
+  --write-health-check=filer1=http://filer1:8888/ \
+  --write-health-check=filer2=http://filer2:8888/ \
+  --write-health-check=filer3=http://filer3:8888/ \
+  --write-health-check=master1=http://master1:9333/cluster/status \
+  --write-health-check=master2=http://master2:9333/cluster/status \
+  --write-health-check=master3=http://master3:9333/cluster/status \
+  --write-health-check="assign1=http://master1:9333/dir/assign?count=1&replication=XXX|200" \
+  --write-health-check="assign2=http://master2:9333/dir/assign?count=1&replication=XXX|200" \
+  --write-health-check="assign3=http://master3:9333/dir/assign?count=1&replication=XXX|200" \
+  --address=:9000 http://stor1:8333 http://stor2:8333 http://stor3:8333
 ```
 
 - Upstream = **S3 Gateway**, not volume nodes  
+- Same role OR (at least one master/filer/assign/s3 OK); roles AND  
 - Visibility checks optional; must not gate PUT on single volume down  
-- Separate read instance without write gate  
+- Combined read+write instance OK (GET not blocked by write gate)  
 
 ## Snapshot migration vab → csb (not applied)
 

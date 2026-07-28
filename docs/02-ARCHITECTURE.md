@@ -55,6 +55,8 @@ Stand archive bucket: `video-fragments` (not prod `vab`).
 
 **Blocking probes** (affect PUT gate): `s3`, `filer`, `master`, `assign`.
 
+**Multi-node OR:** same role is OR (`master1`/`master2` → at least one OK); different roles are AND (need live master **and** filer). Role = name without trailing digits (`filer-2` → `filer`).
+
 **Visibility probes** (`--write-health-visibility-check`, `blocking: false` in JSON): direct volume health, e.g. `volume1=http://volume1:8080/healthz`.
 
 | Endpoint | Role |

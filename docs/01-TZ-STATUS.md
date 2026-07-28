@@ -39,7 +39,7 @@ Internal acceptance tracker. **Not** a production sign-off.
 | 6.3 Recovery | **Done** (stand) | `WRITE_RECOVERED`, recovery threshold | Long soak |
 | 6.4 Alerting | **Partial** | `/metrics`, `observability/vmalert-sideweed-rules.yml` | Customer vmalert deploy |
 
-**§6.1 design:** write gate = aggregate **assign** readiness. Per-volume probes are **visibility-only** (`blocking: false` in JSON); single volume down must **not** block PUT when assign succeeds.
+**§6.1 design:** write gate = role groups with OR within role (at least one master / filer / assign OK) and AND across roles. Per-volume probes are **visibility-only** (`blocking: false` in JSON); single volume down must **not** block PUT when assign succeeds.
 
 ## §7 Testing
 
