@@ -104,7 +104,7 @@ go test ./...
 bash -n scripts/chaos/*.sh scripts/disk-sim/*.sh
 ```
 
-**Pins (update after each release):** SeaweedFS `fee9234`, sideweed submodule SHA in root.
+**Pins (update after each release):** SeaweedFS `8e08048`, sideweed submodule SHA in root.
 
 ## Cassandra — data to request from customer
 

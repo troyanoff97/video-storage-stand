@@ -20,7 +20,7 @@ make check-seaweedfs
 make up && make health && make test
 ```
 
-SeaweedFS — внешний customer fork (pin `fee9234`). Подробности: [docs/02-ARCHITECTURE.md](docs/02-ARCHITECTURE.md).
+SeaweedFS — внешний customer fork (pin `8e08048`). Подробности: [docs/02-ARCHITECTURE.md](docs/02-ARCHITECTURE.md).
 
 ## Порты
 
