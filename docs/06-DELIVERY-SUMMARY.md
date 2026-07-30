@@ -13,7 +13,7 @@ Customer-facing overview of the video-storage stand work.
 | Artifact | Status |
 |----------|--------|
 | Stand repo (`video-storage-stand`) | Done |
-| SeaweedFS fork @ `1528e7d` | Done |
+| SeaweedFS fork @ `87210e6` | Done |
 | sideweed fork (write gate, `/metrics`, `/v1/write-health`, volume visibility) | Done |
 | Tests, disk-sim, chaos scripts | Done |
 | vmalert rule samples (`observability/`) | Done (reference) |
@@ -61,9 +61,9 @@ make check-seaweedfs && make up && make test && make test-sideweed
 
 ## Repositories
 
-- Stand: `github.com/troyanoff97/video-storage-stand`  
-- SeaweedFS: `github.com/troyanoff97/seaweedfs` (`feat/volume-disk-health-isolation`, `1528e7d`)  
-- sideweed: `github.com/troyanoff97/sideweed` (submodule pointer in stand)  
+- Stand: `github.com/troyanoff97/video-storage-stand`
+- SeaweedFS: `github.com/troyanoff97/seaweedfs` (`feat/volume-disk-health-isolation`, `87210e6`)
+- sideweed: `github.com/troyanoff97/sideweed` (submodule pointer in stand)
 
 ## Documentation map
 

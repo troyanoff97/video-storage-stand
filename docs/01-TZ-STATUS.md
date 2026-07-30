@@ -15,9 +15,10 @@ Internal acceptance tracker. **Not** a production sign-off.
 
 | Req | Status | Evidence | Gap |
 |-----|--------|----------|-----|
-| 4.1 Customer fork | **Done** | Pin `1528e7d`, `make check-seaweedfs` | Deploy on physical nodes |
+| 4.1 Customer fork | **Done** | Pin `87210e6`, `make check-seaweedfs` | Deploy on physical nodes |
 | 4.2 Disk failure handling | **Local verified** | `make chaos-multi-dir`, `scripts/disk-sim/` PASS 2026-06-25 | Bare-metal sign-off |
 | 4.3 Per-dir isolation | **Local verified** | Multi-dir skip in patched `weed volume` | 14×`/mnt/stor*` on metal |
+| 4.3b Hot disk add/remove | **Local verified** | `/admin/disk/{add,remove,list}`, race tests, E2E stable PID | Prod bake-in + whiteList |
 | 4.4 Logging / metrics | **Local verified** | Chaos logs, `seaweed_volumeServer_disk_healthy` | Prod host validation |
 | 4.5 Recovery | **Local verified** | `recover_mounts.sh`, E2E overlay | Real remount SLA |
 

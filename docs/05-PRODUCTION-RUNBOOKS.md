@@ -6,11 +6,34 @@
 
 ```bash
 git clone git@github.com:troyanoff97/seaweedfs.git
-git checkout feat/volume-disk-health-isolation   # pin 1528e7d
+git checkout feat/volume-disk-health-isolation
 weed volume -dir=/mnt/stor1,...,/mnt/stor14 -minFreeSpace=50GiB -mserver=... -metricsPort=9324
 ```
 
 Verify: disk location logs, `seaweed_volumeServer_disk_healthy{dir}`, assign skips unhealthy dirs.
+
+### Hot disk add/remove (no volume process restart)
+
+HTTP admin on volume port (whitelist if configured):
+
+```bash
+# list
+curl -fsS "http://VOLUME:8088/admin/disk/list"
+
+# remove failed disk (force if volumes still registered)
+curl -fsS -X POST "http://VOLUME:8088/admin/disk/remove" \
+  --data-urlencode "dir=/mnt/stor4" --data-urlencode "force=true"
+
+# OS: umount / replace / format / mount /mnt/stor4
+
+# add disk back
+curl -fsS -X POST "http://VOLUME:8088/admin/disk/add" \
+  --data-urlencode "dir=/mnt/stor4" \
+  --data-urlencode "max=0" \
+  --data-urlencode "minFreeSpace=50GiB"
+```
+
+Helper: `scripts/volume_disk_hot_replace.sh`. Master receives updated heartbeat (`MaxVolumeCounts`, `LocationUuids`). With `replication=000`, data on a physically failed disk is not recoverable by the cluster.
 
 ## sideweed production config
 
@@ -72,7 +95,7 @@ go test ./...
 bash -n scripts/chaos/*.sh scripts/disk-sim/*.sh
 ```
 
-**Pins (update after each release):** SeaweedFS `1528e7d`, sideweed submodule SHA in root.
+**Pins (update after each release):** SeaweedFS `87210e6`, sideweed submodule SHA in root.
 
 ## Cassandra — data to request from customer
 
