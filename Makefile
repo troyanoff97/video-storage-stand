@@ -16,7 +16,7 @@ help:
 	@echo "Targets:"
 	@echo "  init                 git submodule update --init"
 	@echo "  init-seaweedfs       clone customer fork (SEAWEEDFS_REPO_URL) + checkout pin"
-	@echo "  check-seaweedfs      verify ./seaweedfs at commit 416e55a"
+	@echo "  check-seaweedfs      verify ./seaweedfs at commit af88c7f"
 	@echo "  up                   build and start stack"
 	@echo "  down                 stop stack"
 	@echo "  health               wait for all services"

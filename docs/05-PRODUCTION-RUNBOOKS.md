@@ -55,6 +55,12 @@ After `add`/`remove`, restart will keep the same disk set (no need to edit
 `ExecStart -dir`). To fall back to systemd `-dir`, delete the `*.disks.json`
 file and restart.
 
+Disk health is probed every minute with a temporary 1-byte
+create/write/fsync/remove operation under each registered directory, using the
+`weed-volume` process identity. Permission, read-only filesystem, full disk,
+and synchronous I/O failures set `SeaweedFS_volumeServer_disk_healthy` to `0`;
+the probe file is removed immediately.
+
 Helper: `scripts/volume_disk_hot_replace.sh`. Master receives updated heartbeat (`MaxVolumeCounts`, `LocationUuids`). With `replication=000`, data on a physically failed disk is not recoverable by the cluster.
 
 ## sideweed production config
@@ -117,7 +123,7 @@ go test ./...
 bash -n scripts/chaos/*.sh scripts/disk-sim/*.sh
 ```
 
-**Pins (update after each release):** SeaweedFS `416e55a`, sideweed submodule SHA in root.
+**Pins (update after each release):** SeaweedFS `af88c7f`, sideweed submodule SHA in root.
 
 ## Cassandra — data to request from customer
 
