@@ -14,7 +14,11 @@ Verify: disk location logs, `seaweed_volumeServer_disk_healthy{dir}`, assign ski
 
 ### Hot disk add/remove (no volume process restart)
 
-HTTP admin on volume port (whitelist if configured):
+HTTP admin on volume port (whitelist if configured). Changes are persisted to
+`-dir.config` (default `/var/lib/seaweedfs/volume.<ip>.<port>.disks.json`) and
+**override** systemd `-dir` on the next restart. Ensure the config directory is
+writable (`mkdir -p /var/lib/seaweedfs`), or set `-dir.config=/path/writable/....json`.
+Cannot remove the last remaining disk (add a replacement first).
 
 ```bash
 # list
@@ -25,13 +29,18 @@ curl -fsS -X POST "http://VOLUME:8088/admin/disk/remove" \
   --data-urlencode "dir=/mnt/stor4" --data-urlencode "force=true"
 
 # OS: umount / replace / format / mount /mnt/stor4
+# OR add a brand-new mount, e.g. /mnt/stor5 — no systemd edit required
 
-# add disk back
+# add disk back (or add /mnt/stor5)
 curl -fsS -X POST "http://VOLUME:8088/admin/disk/add" \
   --data-urlencode "dir=/mnt/stor4" \
   --data-urlencode "max=0" \
   --data-urlencode "minFreeSpace=50GiB"
 ```
+
+After `add`/`remove`, restart will keep the same disk set (no need to edit
+`ExecStart -dir`). To fall back to systemd `-dir`, delete the `*.disks.json`
+file and restart.
 
 Helper: `scripts/volume_disk_hot_replace.sh`. Master receives updated heartbeat (`MaxVolumeCounts`, `LocationUuids`). With `replication=000`, data on a physically failed disk is not recoverable by the cluster.
 
@@ -95,7 +104,7 @@ go test ./...
 bash -n scripts/chaos/*.sh scripts/disk-sim/*.sh
 ```
 
-**Pins (update after each release):** SeaweedFS `87210e6`, sideweed submodule SHA in root.
+**Pins (update after each release):** SeaweedFS `fee9234`, sideweed submodule SHA in root.
 
 ## Cassandra — data to request from customer
 

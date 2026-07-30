@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Hot-replace a failed disk on a running weed-volume (no process restart).
+# add/remove persist to -dir.config and survive systemctl restart (no systemd -dir edit).
 #
 # Typical flow (customer case):
 #   1) failed dir marked unhealthy by volume disk-health
 #   2) remove dir from volume server (force if volumes still registered)
 #   3) umount / replace physical disk / format / mount
-#   4) add dir back to the same volume server
+#      OR mount a brand-new path (e.g. /mnt/stor5) — no systemd edit
+#   4) add dir back (or add /mnt/stor5) to the same volume server
 #
 # Usage:
 #   VOLUME_URL=http://127.0.0.1:8088 DIR=/mnt/stor4 ./scripts/volume_disk_hot_replace.sh remove
