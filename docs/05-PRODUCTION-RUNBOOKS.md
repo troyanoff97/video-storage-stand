@@ -20,6 +20,19 @@ HTTP admin on volume port (whitelist if configured). Changes are persisted to
 writable (`mkdir -p /var/lib/seaweedfs`), or set `-dir.config=/path/writable/....json`.
 Cannot remove the last remaining disk (add a replacement first).
 
+Preferred: `weed shell` (same binary as volume):
+
+```bash
+weed shell -master=MASTER:9333
+> lock
+> volume.disk.list -node 10.0.12.21:8088
+> volume.disk.remove -node 10.0.12.21:8088 -dir=/mnt/stor4 -force
+> volume.disk.add -node 10.0.12.21:8088 -dir=/mnt/stor5 -max=0 -minFreeSpace=50GiB
+> unlock
+```
+
+HTTP admin (equivalent):
+
 ```bash
 # list
 curl -fsS "http://VOLUME:8088/admin/disk/list"
@@ -104,7 +117,7 @@ go test ./...
 bash -n scripts/chaos/*.sh scripts/disk-sim/*.sh
 ```
 
-**Pins (update after each release):** SeaweedFS `8e08048`, sideweed submodule SHA in root.
+**Pins (update after each release):** SeaweedFS `416e55a`, sideweed submodule SHA in root.
 
 ## Cassandra — data to request from customer
 

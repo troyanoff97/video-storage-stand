@@ -9,7 +9,15 @@
 #      OR mount a brand-new path (e.g. /mnt/stor5) — no systemd edit
 #   4) add dir back (or add /mnt/stor5) to the same volume server
 #
-# Usage:
+# Preferred: weed shell (after deploying binary with volume.disk.*):
+#   weed shell -master=MASTER:9333
+#   > lock
+#   > volume.disk.list -node HOST:8088
+#   > volume.disk.remove -node HOST:8088 -dir=/mnt/stor4 -force
+#   > volume.disk.add -node HOST:8088 -dir=/mnt/stor5 -max=0 -minFreeSpace=50GiB
+#   > unlock
+#
+# HTTP fallback (this script):
 #   VOLUME_URL=http://127.0.0.1:8088 DIR=/mnt/stor4 ./scripts/volume_disk_hot_replace.sh remove
 #   VOLUME_URL=http://127.0.0.1:8088 DIR=/mnt/stor4 MAX=0 MIN_FREE=50GiB ./scripts/volume_disk_hot_replace.sh add
 #   VOLUME_URL=http://127.0.0.1:8088 ./scripts/volume_disk_hot_replace.sh list
