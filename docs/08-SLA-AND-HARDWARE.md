@@ -10,7 +10,7 @@ Customer (2026-07-31): formal latency/uptime SLA **does not exist**. The table b
 
 ### Availability
 
-| Component | Proposed target | Measurement |
+| Component | Working target | Measurement |
 |-----------|-----------------|-------------|
 | Write path (sideweed gate) | ≥ 99.5% time `write_health_status==1` over 30d | `sideweed_write_health_status` |
 | Volume process | Process up; `/healthz` OK | systemd + volume `:healthz` (liveness only) |
@@ -22,7 +22,7 @@ Customer (2026-07-31): formal latency/uptime SLA **does not exist**. The table b
 
 ### Latency
 
-| Path | Proposed | Baseline / source |
+| Path | Working target | Baseline / source |
 |------|----------|-------------------|
 | Cassandra `filemeta` local read p99 | < 5 ms steady; investigate if sustained > 10 ms or SSTables-per-read rising | prod histograms ~0.9 ms p99 (2026-07-31) |
 | Cassandra `filemeta` local write p99 | < 1 ms | ~50 µs p99 observed |
@@ -48,10 +48,11 @@ cd seaweedfs
 git checkout feat/volume-disk-health-isolation
 # pin used by stand: af88c7f — prefer exact SHA for prod builds
 git checkout af88c7f
+# Dependencies: Go toolchain required by SeaweedFS Makefile; see fork README / go.mod
 make install   # or project-standard go build → weed
 ```
 
-Stand pin check: `make check-seaweedfs` in this repo.
+Stand pin check: `make check-seaweedfs` in this repo. Source of all fork changes is `github.com/troyanoff97/seaweedfs` @ pin above (+ stand docs/scripts in this repo).
 
 ### Update volume nodes (disk-health + hot disk API)
 
@@ -101,6 +102,7 @@ Assumes production-like roles split (master / volume / filer+S3 / Cassandra / si
 |--|---------|-------------|
 | CPU | 8 cores | 16+ cores |
 | RAM | 32 GiB | 64 GiB |
+| OS | Linux x86_64 (systemd) | Same; match customer prod base image |
 | Data disks | Multiple independent mounts (`/mnt/stor*`); capacity for RF and retention | Same; leave headroom ≥ `minFreeSpace` (e.g. 50 GiB) per dir |
 | OS disk | 50 GiB SSD | 100 GiB SSD |
 | Network | 10 GbE | 25 GbE if multi-node heavy ingest |

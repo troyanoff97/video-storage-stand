@@ -12,8 +12,8 @@ Reduce SSTable pile-up under ~30d object TTL and improve read fan-out by widenin
 
 | Window | ~windows over 30d | Expected SSTable pressure |
 |--------|-------------------|---------------------------|
-| 6h (current) | ~120 | Observed **187** SSTables |
-| 2d (target) | ~15 | Fewer overlapping windows to read |
+| 6h (baseline before change) | ~120 | Observed **187** SSTables |
+| 2d (target / already in some envs) | ~15 | Fewer overlapping windows to read |
 
 ## Production baseline (customer, 2026-07-31)
 

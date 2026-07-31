@@ -20,7 +20,7 @@ Customer-facing overview of the video-storage stand work.
 | vmalert rule samples (`observability/`) | Done (reference) |
 | Incident collector script | Done |
 | vab→csb migration runbook | Prepared, **not applied** |
-| `filemeta` TWCS 2d ALTER/rollback + analysis | Prepared, **not applied** |
+| `filemeta` TWCS 2d ALTER/rollback + analysis | Ready in repo (**not** applied from here); customer already applied ad-hoc in some envs |
 | SLA / hardware / autonomy docs | Done (working targets; no formal SLA) |
 
 ## Verified on stand
