@@ -42,6 +42,8 @@ Customer (2026-07-31): formal latency/uptime SLA **does not exist**. The table b
 
 ### Build SeaweedFS customer fork
 
+**3.80 line (current stand / prod pin):**
+
 ```bash
 git clone git@github.com:troyanoff97/seaweedfs.git
 cd seaweedfs
@@ -52,7 +54,18 @@ git checkout af88c7f
 make install   # or project-standard go build → weed
 ```
 
-Stand pin check: `make check-seaweedfs` in this repo. Source of all fork changes is `github.com/troyanoff97/seaweedfs` @ pin above (+ stand docs/scripts in this repo).
+**4.40 line (optional upgrade path):**
+
+```bash
+git clone git@github.com:troyanoff97/seaweedfs.git
+cd seaweedfs
+git checkout feat/volume-disk-health-isolation-4.40
+# pin: a13feafc9 (disk-health port onto upstream tag 4.40)
+git checkout a13feafc9
+make install
+```
+
+Stand pin check (`make check-seaweedfs`) still expects the **3.80** pin unless you change `SEAWEEDFS_REQUIRED_COMMIT*`. Source: `github.com/troyanoff97/seaweedfs` (+ stand docs/scripts in this repo).
 
 ### Update volume nodes (disk-health + hot disk API)
 

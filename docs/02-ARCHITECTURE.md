@@ -33,12 +33,15 @@ Stand archive bucket: `video-fragments` (not prod `vab`).
 
 ## SeaweedFS fork
 
-- **Repo:** `github.com/troyanoff97/seaweedfs`, branch `feat/volume-disk-health-isolation`
-- **Pin:** `af88c7f` (`make check-seaweedfs`)
+- **Repo:** `github.com/troyanoff97/seaweedfs`
+- **Prod/stand pin (3.80 line):** branch `feat/volume-disk-health-isolation`, pin `af88c7f` (`make check-seaweedfs`)
+- **Optional 4.40 line:** branch `feat/volume-disk-health-isolation-4.40`, pin `a13feafc9` (same disk-health / hot-disk features ported onto upstream tag `4.40`)
 - **Patch:** per-dir disk health with a real create/write/fsync/remove probe, skip unhealthy dirs in assign, readonly existing volumes, `/status` DiskHealth, heartbeat on change, **hot add/remove disk dirs** via `/admin/disk/{add,remove,list}`
 - **Prod example:** `weed volume -dir=/mnt/stor1,...,/mnt/stor14 -minFreeSpace=50GiB`
 - **Metric:** `seaweed_volumeServer_disk_healthy{dir}`
 - **Hot disk replace:** remove failed dir (`force=true` if volumes remain) → OS replace/mount → add dir; no `weed-volume` restart. Runtime set persisted to `-dir.config` (default `/var/lib/seaweedfs/volume.<ip>.<port>.disks.json`) and overrides systemd `-dir` after restart
+
+Do **not** mix binaries from 3.80 and 4.40 lines on the same volume node without a planned upgrade. Stand default remains the 3.80 pin.
 
 ## Cassandra (two layers)
 
