@@ -60,8 +60,8 @@ make install   # or project-standard go build → weed
 git clone git@github.com:troyanoff97/seaweedfs.git
 cd seaweedfs
 git checkout feat/volume-disk-health-isolation-4.40
-# pin: a13feafc9 (disk-health port onto upstream tag 4.40)
-git checkout a13feafc9
+# pin: 7e3b8122f (disk-health port onto upstream tag 4.40)
+git checkout 7e3b8122f
 make install
 ```
 

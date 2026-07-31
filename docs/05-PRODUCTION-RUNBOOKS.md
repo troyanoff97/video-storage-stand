@@ -12,7 +12,7 @@ git checkout feat/volume-disk-health-isolation   # or pin af88c7f
 weed volume -dir=/mnt/stor1,...,/mnt/stor14 -minFreeSpace=50GiB -mserver=... -metricsPort=9324
 ```
 
-**4.40 line (optional):** branch `feat/volume-disk-health-isolation-4.40`, pin `a13feafc9` — same disk-health / hot-disk features on upstream `4.40`. Do not mix 3.80 and 4.40 binaries on one node without a planned upgrade.
+**4.40 line (optional):** branch `feat/volume-disk-health-isolation-4.40`, pin `7e3b8122f` — same disk-health / hot-disk features on upstream `4.40`. Do not mix 3.80 and 4.40 binaries on one node without a planned upgrade.
 
 Verify: disk location logs, `seaweed_volumeServer_disk_healthy{dir}`, assign skips unhealthy dirs.
 
