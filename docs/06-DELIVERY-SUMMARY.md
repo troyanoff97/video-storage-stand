@@ -2,11 +2,12 @@
 
 Customer-facing overview of the video-storage stand work.
 
-## Scope (3 tasks)
+## Scope
 
 1. **SeaweedFS** — disk failure handling on customer fork (per-dir isolation)  
-2. **Cassandra** — metadata optimization design + stand smoke; prod teye layer pending  
+2. **Cassandra** — `seaweedfs.filemeta` TWCS 6h→2d artifacts + runbook (teye out of scope)  
 3. **sideweed** — write protection (503 on degraded path) + observability  
+4. **Этап 4** — working SLA (no formal), autonomy, min/rec hardware (`docs/08-SLA-AND-HARDWARE.md`)  
 
 ## Delivered
 
@@ -19,6 +20,8 @@ Customer-facing overview of the video-storage stand work.
 | vmalert rule samples (`observability/`) | Done (reference) |
 | Incident collector script | Done |
 | vab→csb migration runbook | Prepared, **not applied** |
+| `filemeta` TWCS 2d ALTER/rollback + analysis | Prepared, **not applied** |
+| SLA / hardware / autonomy docs | Done (working targets; no formal SLA) |
 
 ## Verified on stand
 
@@ -53,11 +56,11 @@ make check-seaweedfs && make up && make test && make test-sideweed
 
 | Item | Why |
 |------|-----|
+| Fold `filemeta` TWCS 2d into main playbook | ad-hoc done in some envs; CQL/runbook ready |
 | Bare-metal disk tests | no isolated host |
 | csb migration apply | change window |
-| teye Cassandra optimization | DDL / stats not shared |
 | vmalert deploy | SRE integration |
-| sideweed prod rollout | write LB change window |
+| sideweed prod rollout | write LB change window (if still pending) |
 
 ## Repositories
 
@@ -73,5 +76,7 @@ make check-seaweedfs && make up && make test && make test-sideweed
 | [02-ARCHITECTURE.md](02-ARCHITECTURE.md) | Paths, forks, health model |
 | [03-TESTING.md](03-TESTING.md) | Commands, chaos, disk-sim |
 | [04-OPERATIONS.md](04-OPERATIONS.md) | Metrics, alerts, incidents |
-| [05-PRODUCTION-RUNBOOKS.md](05-PRODUCTION-RUNBOOKS.md) | Deploy, migration, push |
+| [05-PRODUCTION-RUNBOOKS.md](05-PRODUCTION-RUNBOOKS.md) | Deploy, migration, `filemeta` TWCS, push |
+| [07-CASSANDRA-FILEMETA.md](07-CASSANDRA-FILEMETA.md) | Prod baseline, TWCS 2d analysis |
+| [08-SLA-AND-HARDWARE.md](08-SLA-AND-HARDWARE.md) | Working SLA, autonomy, hardware |
 | This file | Executive summary |

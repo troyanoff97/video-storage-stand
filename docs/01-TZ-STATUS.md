@@ -28,8 +28,9 @@ Internal acceptance tracker. **Not** a production sign-off.
 |-----|--------|----------|-----|
 | 5.1 vab/csb split | **Partial** | `make test-snapshot`; prod audit: camera still **vab** | Migration apply |
 | 5.2 Pipeline | **Partial** | Stand scripts; prod configs read-only | streamserver/teye window |
-| 5.3 Compaction / range query | **Partial** | `make test-range-query`; prod TWCS on `seaweedfs.filemeta` | teye DDL, `tablestats` |
-| 5.4 Dual-read migration | **Not started** | Design in architecture doc | Customer data + job |
+| 5.3 Compaction / time query (`filemeta`) | **Done** (artifacts) | Prod DDL + tablestats; TWCS 6h→2d CQL/runbook — `docs/07-CASSANDRA-FILEMETA.md`, `cassandra/filemeta_twcs_*.cql` | Customer self-applies; fold into main playbook (ad-hoc already in some envs) |
+| 5.3b teye Cassandra | **Out of scope** | Customer: SeaweedFS only | — |
+| 5.4 Dual-read migration | **Not started** | Design in architecture doc | Customer data + job (archive tables; not filemeta TWCS) |
 
 ## §6 sideweed (Task №3)
 
@@ -54,12 +55,13 @@ Internal acceptance tracker. **Not** a production sign-off.
 | dm-error (I/O) | **Partial** | `make disk-sim-dm-error` — **SKIP** on dev host (`dm_mod` unavailable); manual on disposable VM |
 | Bare-metal plan | **Blocked** | No isolated volume node from customer |
 
-## §8 Deliverables
+## §8 Deliverables / этап 4
 
 | Item | Status |
 |------|--------|
 | Stand repo, forks, scripts, docs | **Done** |
 | Observability samples | **Done** (reference) |
+| SLA / hardware / autonomy | **Done** — `docs/08-SLA-AND-HARDWARE.md` (no formal SLA; working targets) |
 | Production rollout | **Not done** |
 | Bare-metal acceptance | **Not done** |
 
@@ -75,8 +77,8 @@ curl -fsS :8880/metrics | grep sideweed_write_health_status
 
 ## Remaining (customer)
 
-1. vmalert scrape + rules on VictoriaMetrics stack  
-2. vab→csb migration (change window)  
-3. teye Cassandra DDL / query patterns  
+1. Add `filemeta` TWCS 2d to **main** playbook (CQL/runbook ready; already applied ad-hoc in some envs)  
+2. vmalert scrape + rules on VictoriaMetrics stack  
+3. vab→csb migration (change window)  
 4. Bare-metal disk fault test on isolated volume node  
-5. sideweed write gate on production write LB  
+5. sideweed write gate on production write LB (if not already fully rolled out)  

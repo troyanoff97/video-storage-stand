@@ -7,6 +7,8 @@ make up && make health
 make test              # archive PUT/GET via sideweed
 make test-snapshot     # csb snapshots
 make test-range-query  # Cassandra time range
+make cassandra-filemeta-checks  # filemeta TWCS checklist (safe)
+# make cassandra-filemeta-checks STAND_MIRROR=1  # optional stand TWCS smoke
 make test-sideweed     # write gate (35 scenarios)
 make verify-path       # log proof: sideweed→S3
 ```

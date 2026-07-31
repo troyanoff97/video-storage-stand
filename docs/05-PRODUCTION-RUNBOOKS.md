@@ -125,22 +125,77 @@ bash -n scripts/chaos/*.sh scripts/disk-sim/*.sh
 
 **Pins (update after each release):** SeaweedFS `af88c7f`, sideweed submodule SHA in root.
 
-## Cassandra — data to request from customer
+## Cassandra — `seaweedfs.filemeta` TWCS 6h → 2d (этап 3)
 
-1. `DESCRIBE` teye DDL  
-2. Query patterns (p50/p95 windows)  
-3. Retention and snapshot frequency  
-4. `nodetool tablestats` / compaction settings  
-5. Tombstone / SSTable sizes  
-6. streamserver / teye pipeline configs  
-7. Migration constraints for dual-read  
+**Scope:** SeaweedFS filer table only. **teye not in scope.**  
+**Not applied from this repo.** Customer applies ALTER themselves (already done in some stressed environments; **main playbook not updated yet** — use this section + CQL as the playbook source).
 
-**Do not** apply `cassandra/schema-v2.cql` without sign-off.
+Background & baseline metrics: [07-CASSANDRA-FILEMETA.md](07-CASSANDRA-FILEMETA.md).
+
+### Pre-checks
+
+```bash
+# Print nodetool/cqlsh checklist (safe; no ALTER)
+./scripts/cassandra_filemeta_checks.sh
+# Or on a Cassandra node:
+#   HOST=<node> ./scripts/cassandra_filemeta_checks.sh
+```
+
+Capture and save:
+
+1. `DESCRIBE TABLE seaweedfs.filemeta;` — confirm TWCS `6` / `HOURS`
+2. `nodetool tablestats seaweedfs.filemeta` — SSTable count, droppable tombstone ratio, % repaired
+3. `nodetool tablehistograms seaweedfs filemeta` — read p95/p99, max SSTables
+4. `nodetool compactionstats` + `tpstats` — no stuck compaction storm
+5. Disk free on Cassandra data directories; note filer/error rate baseline
+
+### Apply (one DC / limited contour first if multi-DC)
+
+```bash
+cqlsh <host> -f cassandra/filemeta_twcs_2d_alter.cql
+cqlsh <host> -e "DESCRIBE TABLE seaweedfs.filemeta;" | grep compaction_window
+```
+
+Expect: `compaction_window_size: '2'`, `compaction_window_unit: 'DAYS'`.  
+LZ4, `gc_grace_seconds`, and `default_time_to_live` stay unchanged.
+
+### Post-checks (repeat over hours → days)
+
+- SSTable count **trend** (not instant drop) toward fewer windows (~15 for ~30d TTL)
+- Pending compactions not unbounded; disk headroom for compaction
+- Read latency p95/p99 stable or improved vs pre-baseline
+- Droppable tombstone ratio — should not worsen; reclaim as windows compact
+- Filer / sideweed write-health unchanged (meta path still healthy)
+
+### Rollback
+
+```bash
+cqlsh <host> -f cassandra/filemeta_twcs_6h_rollback.cql
+```
+
+### Ops notes (not part of ALTER)
+
+| Topic | Action |
+|-------|--------|
+| `Percent repaired: 0` | Schedule repair separately; do not block TWCS on it |
+| Wide `/buckets/esb/...` partitions | Monitor size; PK redesign out of this stage |
+| Compression | Keep LZ4; optional later ALTER — see doc § Flexible compression |
+
+### Stand smoke (optional)
+
+```bash
+make up && make health
+make cassandra-filemeta-checks STAND_MIRROR=1
+```
+
+Creates `seaweedfs_stand.filemeta`, applies 2d window, asserts DESCRIBE. Does **not** change production or runtime `schema.cql`.
+
+**Do not** apply `cassandra/schema-v2.cql` without sign-off (archive experiment, unrelated to `filemeta`).
 
 ## Customer prerequisites
 
+- Fold `filemeta` TWCS 2d into **main** Cassandra/SeaweedFS playbook (CQL + this runbook; already applied ad-hoc in some envs)  
 - Isolated volume node for bare-metal disk tests  
-- teye DDL and load facts  
 - Change window owner for csb migration  
 - VM scrape + vmalert integration  
 - Dual-read policy for legacy `vab/*.jpeg` URLs  

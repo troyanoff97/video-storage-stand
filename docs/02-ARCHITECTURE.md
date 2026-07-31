@@ -42,13 +42,17 @@ Stand archive bucket: `video-fragments` (not prod `vab`).
 
 ## Cassandra (two layers)
 
-**Filer (production):** keyspace `seaweedfs`, table `filemeta`, PK `(directory,name)`, TWCS 6h, RF=3.
+**Filer (production):** keyspace `seaweedfs`, table `filemeta`, PK `(directory,name)`, RF=3.
 
-**Application (teye):** separate cluster; DDL not in archives — customer must provide.
+- **Current prod:** TWCS window **6 HOURS**, LZ4, `default_time_to_live=0`, `gc_grace_seconds=3600`, ~187 SSTables / ~6.3 GiB, droppable tombstone ratio ~0.87, 0% repaired (baseline 2026-07-31).
+- **Этап 3 target:** TWCS window **2 DAYS** (manual ALTER) — fewer windows under ~30d TTL → lower read fan-out. Artifacts: [07-CASSANDRA-FILEMETA.md](07-CASSANDRA-FILEMETA.md), `cassandra/filemeta_twcs_2d_alter.cql` / rollback.
+- Wide partitions under `/buckets/esb/...` observed; no PK redesign in this stage.
 
-**Stand:** `video_archive.fragments`, PK `(camera_id, fragment_id)`, RF=1.
+**Application (teye):** separate cluster — **out of scope** for stages 3–4 (customer confirmation).
 
-**Draft v2** (`cassandra/schema-v2.cql`): `time_bucket` + TWCS — manual apply only, not runtime.
+**Stand:** `video_archive.fragments`, PK `(camera_id, fragment_id)`, RF=1. Optional TWCS mirror smoke: `cassandra/filemeta_twcs_2d_mirror_stand.cql` + `make cassandra-filemeta-checks STAND_MIRROR=1`.
+
+**Draft v2** (`cassandra/schema-v2.cql`): `time_bucket` + TWCS for archive metadata experiments — manual apply only, not runtime, not `filemeta`.
 
 **Load model (TZ):** ~10k cameras, 20s fragments, 3y retention → billions of rows; v1 PK hot partitions at scale.
 

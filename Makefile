@@ -8,7 +8,7 @@ GO := go
 	chaos-volume-down chaos-volume-up chaos-master-down chaos-master-up \
 	chaos-mount-unavailable chaos-disk-full chaos-disk-readonly chaos-reset \
 	chaos-matrix chaos-recovery chaos-recovery-disk chaos-multi-dir put-v1 up-multi-dir up-persist \
-	test-sideweed test-snapshot test-range-query \
+	test-sideweed test-snapshot test-range-query cassandra-filemeta-checks \
 	disk-sim-setup disk-sim-full disk-sim-readonly disk-sim-mount-down disk-sim-recover disk-sim-logs disk-sim-cleanup disk-sim-dm-error \
 	disk-sim-e2e-up disk-sim-e2e-test disk-sim-e2e-down
 
@@ -29,6 +29,7 @@ help:
 	@echo "  put-snapshot         PUT snapshot to bucket csb (production path)"
 	@echo "  test-snapshot        smoke: snapshot PUT + GET via bucket csb"
 	@echo "  test-range-query     smoke: Cassandra list by camera + time range"
+	@echo "  cassandra-filemeta-checks  print filemeta TWCS checklist; STAND_MIRROR=1 for stand smoke"
 	@echo "  verify-path          prove PUT goes sideweed → S3"
 	@echo "  test-sideweed        sideweed write degradation gate (PUT block / recovery)"
 	@echo "  chaos-matrix         run fault scenarios and save results"
@@ -113,6 +114,11 @@ test-snapshot: check-seaweedfs build-cli health
 test-range-query: check-seaweedfs build-cli health
 	chmod +x ./scripts/list_fragments.sh ./scripts/test_range_query.sh
 	./scripts/test_range_query.sh
+
+# Safe by default (prints checklist only). Stand mirror: make cassandra-filemeta-checks STAND_MIRROR=1
+cassandra-filemeta-checks:
+	chmod +x ./scripts/cassandra_filemeta_checks.sh
+	STAND_MIRROR=$(STAND_MIRROR) ./scripts/cassandra_filemeta_checks.sh
 
 verify-path: check-seaweedfs test-file build-cli health
 	./scripts/verify_production_path.sh $(TEST_FILE)
