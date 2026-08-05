@@ -35,7 +35,7 @@ Stand archive bucket: `video-fragments` (not prod `vab`).
 
 - **Repo:** `github.com/troyanoff97/seaweedfs`
 - **Prod/stand pin (3.80 line):** branch `feat/volume-disk-health-isolation`, pin `af88c7f` (`make check-seaweedfs`)
-- **Optional 4.40 line:** branch `feat/volume-disk-health-isolation-4.40`, pin `7e3b8122f` (same disk-health / hot-disk features ported onto upstream tag `4.40`)
+- **Optional 4.40 line:** branch `feat/volume-disk-health-isolation-4.40`, pin `d7f8761ec` (same disk-health / hot-disk features ported onto upstream tag `4.40`)
 - **Patch:** per-dir disk health with a real create/write/fsync/remove probe, skip unhealthy dirs in assign, readonly existing volumes, `/status` DiskHealth, heartbeat on change, **hot add/remove disk dirs** via `/admin/disk/{add,remove,list}`
 - **Prod example:** `weed volume -dir=/mnt/stor1,...,/mnt/stor14 -minFreeSpace=50GiB`
 - **Metric:** `seaweed_volumeServer_disk_healthy{dir}`

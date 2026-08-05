@@ -99,7 +99,15 @@ Local p99 read is still sub-ms on this snapshot; customer reports **read degrada
 
 ### Filer client timeouts
 
-- Not changed in this deliverable. Filer Cassandra store already exposes connection timeout knobs in upstream SeaweedFS; customer did not request code changes.
+Filer Cassandra store (4.40 line) bounds every CQL call with a client deadline:
+
+- `connection_timeout_millisecond` — query timeout (default **10000** if unset/`<=0`; warn if `>15000`)
+- `connect_timeout_millisecond` — dial/setup timeout (default **5000**, capped to query timeout)
+- optional `consistency` — default `LOCAL_QUORUM`; e.g. `LOCAL_ONE` / `ONE` if operators choose
+
+All `Query` calls use `WithContext` so a stuck Cassandra/network path fails fast instead of holding filer goroutines and FDs until the process or host collapses.
+
+**Ops note:** filer `LimitNOFILE=16384` is much lower than volume (`655360`). With a 60s meta timeout, hung requests can exhaust filer FDs before volume limits matter — prefer 5–10s on stage after migration.
 
 ## Migration artifacts
 

@@ -60,12 +60,14 @@ make install   # or project-standard go build → weed
 git clone git@github.com:troyanoff97/seaweedfs.git
 cd seaweedfs
 git checkout feat/volume-disk-health-isolation-4.40
-# pin: 7e3b8122f (disk-health port onto upstream tag 4.40)
-git checkout 7e3b8122f
+# pin: d7f8761ec (disk-health + filer Cassandra fail-fast timeouts on 4.40)
+git checkout d7f8761ec
 make install
 ```
 
 Stand pin check (`make check-seaweedfs`) still expects the **3.80** pin unless you change `SEAWEEDFS_REQUIRED_COMMIT*`. Source: `github.com/troyanoff97/seaweedfs` (+ stand docs/scripts in this repo).
+
+**Filer `[cassandra]` (stage recommendation after redis→cassandra migration):** set `connection_timeout_millisecond = 5000`–`10000` (was 60000). Optional: `connect_timeout_millisecond = 5000`. Filer `LimitNOFILE=16384` is much lower than volume — long meta waits amplify FD pressure on filer.
 
 ### Update volume nodes (disk-health + hot disk API)
 
